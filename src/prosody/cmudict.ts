@@ -1,8 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const here = dirname(fileURLToPath(import.meta.url));
+import { join } from 'node:path';
 
 /**
  * The CMU Pronouncing Dictionary, vendored at data/cmudict-0.7b.txt (BSD-2-Clause,
@@ -15,11 +12,12 @@ const here = dirname(fileURLToPath(import.meta.url));
  */
 let dict: Map<string, string> | null = null;
 
+// Resolved from process.cwd(), not import.meta.url: esbuild bundles this module
+// into dist/index.js, so an import.meta.url-derived path resolves relative to
+// dist/, not to the repo root — that mismatch already broke this once in
+// production. process.cwd() is stable across tsx (dev) and the bundled build.
 function dictPath(): string {
-  return (
-    process.env.SONGSMITH_CMUDICT ??
-    join(here, '..', '..', 'data', 'cmudict-0.7b.txt')
-  );
+  return process.env.SONGSMITH_CMUDICT ?? join(process.cwd(), 'data', 'cmudict-0.7b.txt');
 }
 
 function load(): Map<string, string> {
