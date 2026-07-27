@@ -8,8 +8,6 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "postinstall": "node scripts/fetch-cmudict.mjs",
-    "fetch:cmudict": "node scripts/fetch-cmudict.mjs",
     "dev": "tsx --experimental-sqlite --watch src/index.ts",
     "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external && cp src/schema.sql dist/schema.sql",
     "start": "node --experimental-sqlite dist/index.js",

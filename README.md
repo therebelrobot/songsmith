@@ -205,11 +205,15 @@ migrations.
 
 ## Provenance
 
-- `data/cmudict-0.7b.txt` — CMU Pronouncing Dictionary, BSD-2-Clause. Not
-  committed to the repo; `npm install` fetches it (and its license, retained
-  at `data/CMUDICT-LICENSE.txt`) via `scripts/fetch-cmudict.mjs`
-  (`postinstall`). Re-run with `npm run fetch:cmudict -- --force` if it's
-  missing or you want to refresh it. Parsed ourselves rather than via the
-  `cmudict` npm package, which was last published in 2012, ships no types,
-  and parses the 3.6 MB file byte-by-byte with string concatenation.
+- `data/cmudict-0.7b.txt` — CMU Pronouncing Dictionary, BSD-2-Clause, vendored
+  directly in the repo (with its license at `data/CMUDICT-LICENSE.txt`)
+  rather than fetched on install. `cmusphinx/cmudict` has no release
+  cadence — two fetches of `master` on different days can return different
+  entry counts — and since syllable counts, stress, and rhyme keys all derive
+  from this file, a silent refetch could quietly change a line's scansion or
+  drop a rhyme label on a song someone already wrote against the old data.
+  Vendoring pins it and makes the build work with no network access, which
+  matters for a Pi. Parsed ourselves rather than via the `cmudict` npm
+  package, which was last published in 2012, ships no types, and parses the
+  3.6 MB file byte-by-byte with string concatenation.
 - Project code: Unlicense.
