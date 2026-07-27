@@ -73,20 +73,23 @@ export default async function timingRoutes(app: FastifyInstance) {
       meter_num: song.meter_num,
       meter_den: song.meter_den,
       tempo_bpm: song.tempo_bpm,
-      lines: rows.map((r) => ({
-        line_id: r.line_id,
-        start_bar: r.start_bar,
-        start_beat: r.start_beat,
-        syllables: resolveLineTiming(
-          {
-            startBar: r.start_bar,
-            startBeat: r.start_beat,
-            syllableOffsets: JSON.parse(r.syllable_offsets_json),
-          },
-          r.syllable_count,
-          beatsPerBar,
-        ),
-      })),
+      lines: rows.map((r) => {
+        const anchors = JSON.parse(r.syllable_offsets_json) as { index: number; offset: number }[];
+        const pinned = new Set(anchors.map((a) => a.index));
+        return {
+          line_id: r.line_id,
+          start_bar: r.start_bar,
+          start_beat: r.start_beat,
+          // `pinned` marks which syllables are explicit anchors vs interpolated —
+          // the client needs this to render pin state, but it's presentation,
+          // not maths, so it's added here rather than in resolveLineTiming.
+          syllables: resolveLineTiming(
+            { startBar: r.start_bar, startBeat: r.start_beat, syllableOffsets: anchors },
+            r.syllable_count,
+            beatsPerBar,
+          ).map((s) => ({ ...s, pinned: pinned.has(s.index) })),
+        };
+      }),
     };
   });
 }

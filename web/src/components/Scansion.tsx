@@ -41,18 +41,59 @@ export function scansionLabel(words: WordProsody[]): string {
   return marks || 'no syllables';
 }
 
-/** Syllable segmentation shown under the active line, e.g. "ne·ver  meant  to". */
-export function Segmentation({ words }: { words: WordProsody[] }) {
+/**
+ * Syllable segmentation shown under the active line, e.g. "ne·ver  meant  to".
+ * When `onToggleAnchor` is given, clicking a syllable pins it to its current
+ * beat position (or unpins it if already pinned) — this is the whole
+ * anchoring interaction, no drag, no timeline.
+ */
+export function Segmentation({
+  words,
+  pinned,
+  liveIndex,
+  onToggleAnchor,
+}: {
+  words: WordProsody[];
+  pinned?: ReadonlySet<number>;
+  liveIndex?: number | null;
+  onToggleAnchor?: (index: number) => void;
+}) {
+  let index = -1;
   return (
     <div className="segmentation">
       {words.map((w, wi) => (
         <span key={wi} className={w.known ? 'seg' : 'seg seg-guess'} title={w.known ? undefined : 'not in dictionary — count estimated'}>
-          {w.syllables.map((s, si) => (
-            <span key={si} className={`syl stress-${s.stress}`}>
-              {s.text}
-              {si < w.syllables.length - 1 ? <b className="dot">·</b> : null}
-            </span>
-          ))}
+          {w.syllables.map((s, si) => {
+            index += 1;
+            const i = index;
+            const isPinned = pinned?.has(i) ?? false;
+            const classes = ['syl', `stress-${s.stress}`];
+            if (isPinned) classes.push('syl-pinned');
+            if (liveIndex === i) classes.push('syl-live');
+            return (
+              <span
+                key={si}
+                className={classes.join(' ')}
+                role={onToggleAnchor ? 'button' : undefined}
+                tabIndex={onToggleAnchor ? 0 : undefined}
+                title={onToggleAnchor ? (isPinned ? 'click to unpin' : 'click to pin to this beat') : undefined}
+                onClick={onToggleAnchor ? () => onToggleAnchor(i) : undefined}
+                onKeyDown={
+                  onToggleAnchor
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onToggleAnchor(i);
+                        }
+                      }
+                    : undefined
+                }
+              >
+                {s.text}
+                {si < w.syllables.length - 1 ? <b className="dot">·</b> : null}
+              </span>
+            );
+          })}
         </span>
       ))}
     </div>

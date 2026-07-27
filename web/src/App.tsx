@@ -1,15 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, getToken, setToken, type Song, type SongStub } from './api';
-import { Sheet } from './components/Sheet';
+import {
+  api,
+  ApiError,
+  getToken,
+  offsetOf,
+  setToken,
+  type Grid,
+  type GridLine,
+  type Song,
+  type SongStub,
+  type SyllableAnchor,
+} from './api';
+import { Sheet, anchorsOf } from './components/Sheet';
 import { Inspector } from './components/Inspector';
+import { TempoControl } from './components/TempoControl';
+import { Transport } from './components/Transport';
+
+/** Which of a line's syllables is under the playhead right now, if any. */
+function landingSyllable(gridLine: GridLine | undefined, bar: number, beat: number): number | null {
+  if (!gridLine) return null;
+  const TOLERANCE_BEATS = 0.13; // just over half a sixteenth note, the metronome's tick grain
+  let best: { index: number; dist: number } | null = null;
+  for (const s of gridLine.syllables) {
+    if (s.bar !== bar) continue;
+    const dist = Math.abs(s.beat - beat);
+    if (dist <= TOLERANCE_BEATS && (!best || dist < best.dist)) best = { index: s.index, dist };
+  }
+  return best?.index ?? null;
+}
 
 export default function App() {
   const [songs, setSongs] = useState<SongStub[]>([]);
   const [song, setSong] = useState<Song | null>(null);
+  const [grid, setGrid] = useState<Grid | null>(null);
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsToken, setNeedsToken] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [playheadBar, setPlayheadBar] = useState<number | null>(null);
+  const [livePosition, setLivePosition] = useState<readonly [number, number] | null>(null);
 
   const timers = useRef(new Map<number, number>());
   const activeLine = song?.sections.flatMap((s) => s.lines).find((l) => l.id === activeLineId) ?? null;
@@ -34,13 +63,94 @@ export default function App() {
   );
 
   const reload = useCallback(
-    (id: number) => guard(async () => setSong(await api.getSong(id))),
+    (id: number) =>
+      guard(async () => {
+        const [s, g] = await Promise.all([api.getSong(id), api.getGrid(id)]);
+        setSong(s);
+        setGrid(g);
+      }),
     [guard],
   );
 
   useEffect(() => {
     void refreshList();
   }, [refreshList]);
+
+  function patchTempo(patch: { tempo_bpm?: number | null; meter_num?: number; meter_den?: number }) {
+    if (!song) return;
+    setSong({ ...song, ...patch });
+    void guard(async () => {
+      await api.patchSong(song.id, patch);
+      // meter changes the bar/beat every syllable resolves to, so refresh the grid too.
+      await reload(song.id);
+    });
+  }
+
+  function onSectionBarCount(id: number, barCount: number | null) {
+    if (!song) return;
+    setSong({
+      ...song,
+      sections: song.sections.map((s) => (s.id === id ? { ...s, bar_count: barCount } : s)),
+    });
+    void guard(async () => {
+      await api.patchSection(id, { bar_count: barCount });
+    });
+  }
+
+  function onAssignLineToBar(lineId: number, bar: number) {
+    if (!song) return;
+    const gridLine = grid?.lines.find((l) => l.line_id === lineId);
+    const startBeat = gridLine?.start_beat ?? 1;
+    const syllableOffsets = anchorsOf(gridLine, song.meter_num);
+    void guard(async () => {
+      await api.putLineTiming(lineId, { start_bar: bar, start_beat: startBeat, syllable_offsets: syllableOffsets });
+      await reload(song.id);
+    });
+  }
+
+  function onSetLineBarBeat(lineId: number, startBar: number, startBeat: number) {
+    if (!song) return;
+    const gridLine = grid?.lines.find((l) => l.line_id === lineId);
+    const syllableOffsets = anchorsOf(gridLine, song.meter_num);
+    void guard(async () => {
+      await api.putLineTiming(lineId, { start_bar: startBar, start_beat: startBeat, syllable_offsets: syllableOffsets });
+      await reload(song.id);
+    });
+  }
+
+  /** Click a syllable to pin it at its current beat, or unpin it if already pinned. */
+  function onToggleAnchor(lineId: number, index: number) {
+    if (!song) return;
+    const beatsPerBar = song.meter_num;
+    const gridLine = grid?.lines.find((l) => l.line_id === lineId);
+    const startBar = gridLine?.start_bar ?? 1;
+    const startBeat = gridLine?.start_beat ?? 1;
+    const current = anchorsOf(gridLine, beatsPerBar);
+    const already = current.some((a) => a.index === index);
+    let next: SyllableAnchor[];
+    if (already) {
+      next = current.filter((a) => a.index !== index);
+    } else {
+      const syl = gridLine?.syllables.find((s) => s.index === index);
+      // Unplaced line, or a syllable past the last resolved one: fall back to
+      // the same one-beat-per-syllable default resolveLineTiming() itself
+      // uses when there are no anchors yet.
+      const offset = syl && gridLine ? Math.round(offsetOf(gridLine, beatsPerBar, syl)) : index * 4;
+      next = [...current, { index, offset }].sort((a, b) => a.index - b.index);
+    }
+    void guard(async () => {
+      await api.putLineTiming(lineId, { start_bar: startBar, start_beat: startBeat, syllable_offsets: next });
+      await reload(song.id);
+    });
+  }
+
+  function onClearTiming(lineId: number) {
+    if (!song) return;
+    void guard(async () => {
+      await api.deleteLineTiming(lineId);
+      await reload(song.id);
+    });
+  }
 
   /** Debounced per line: typing in one line never delays a save in another. */
   function editLine(id: number, text: string) {
@@ -86,6 +196,7 @@ export default function App() {
             void guard(async () => {
               const created = await api.createSong('Untitled');
               setSong(created);
+              setGrid(await api.getGrid(created.id));
               setActiveLineId(null);
               setSongs(await api.listSongs());
             })
@@ -100,6 +211,8 @@ export default function App() {
                 className={song?.id === s.id ? 'song-btn on' : 'song-btn'}
                 onClick={() => {
                   setActiveLineId(null);
+                  setPlayheadBar(null);
+                  setLivePosition(null);
                   void reload(s.id);
                 }}
               >
@@ -157,11 +270,30 @@ export default function App() {
               <span className={saving ? 'save-state on' : 'save-state'}>
                 {saving ? 'saving' : 'saved'}
               </span>
+              <TempoControl song={song} onChange={patchTempo} />
+              <Transport
+                song={song}
+                onTick={(bar, beat) => {
+                  setPlayheadBar(bar);
+                  const gridLine = activeLineId
+                    ? grid?.lines.find((l) => l.line_id === activeLineId)
+                    : undefined;
+                  const idx = landingSyllable(gridLine, bar, beat);
+                  setLivePosition(activeLineId !== null && idx !== null ? [activeLineId, idx] : null);
+                }}
+                onStop={() => {
+                  setPlayheadBar(null);
+                  setLivePosition(null);
+                }}
+              />
             </header>
 
             <Sheet
               song={song}
+              grid={grid}
               activeLineId={activeLineId}
+              livePosition={livePosition}
+              playheadBar={playheadBar}
               onSelectLine={setActiveLineId}
               onEditLine={editLine}
               onAddLine={(sectionId, afterId) =>
@@ -193,6 +325,7 @@ export default function App() {
                   await api.patchSection(id, { name });
                 });
               }}
+              onSectionBarCount={onSectionBarCount}
               onAddSection={(afterId) =>
                 void guard(async () => {
                   await api.addSection(song.id, 'Verse', afterId);
@@ -206,6 +339,10 @@ export default function App() {
                   await reload(song.id);
                 })
               }
+              onAssignLineToBar={onAssignLineToBar}
+              onSetLineBarBeat={onSetLineBarBeat}
+              onToggleAnchor={onToggleAnchor}
+              onClearTiming={onClearTiming}
             />
           </>
         )}

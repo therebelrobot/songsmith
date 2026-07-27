@@ -63,6 +63,57 @@ export interface RhymeMatch {
   syllables: number;
 }
 
+/** index is ordinal into a line's flattened syllable list; offset is sixteenth notes from the line's start. */
+export interface SyllableAnchor {
+  index: number;
+  offset: number;
+}
+
+export interface LineTiming {
+  line_id: number;
+  start_bar: number;
+  start_beat: number;
+  syllable_offsets: SyllableAnchor[];
+}
+
+export interface GridSyllable {
+  index: number;
+  bar: number;
+  beat: number;
+  /** true when this syllable is an explicit anchor rather than interpolated */
+  pinned: boolean;
+}
+
+export interface GridLine {
+  line_id: number;
+  start_bar: number;
+  start_beat: number;
+  syllables: GridSyllable[];
+}
+
+export interface Grid {
+  meter_num: number;
+  meter_den: number;
+  tempo_bpm: number | null;
+  lines: GridLine[];
+}
+
+/**
+ * Recover a syllable's line-relative offset (sixteenth notes) from its
+ * resolved bar/beat. Exact for pinned syllables, since those are the fixed
+ * points resolveLineTiming() interpolates around — this is just the inverse
+ * unit conversion, not a reimplementation of the interpolation itself.
+ */
+export function offsetOf(
+  gridLine: { start_bar: number; start_beat: number },
+  beatsPerBar: number,
+  syllable: { bar: number; beat: number },
+): number {
+  return (
+    ((syllable.bar - gridLine.start_bar) * beatsPerBar + (syllable.beat - gridLine.start_beat)) * 4
+  );
+}
+
 const TOKEN_KEY = 'songsmith.token';
 
 export function getToken(): string {
@@ -144,4 +195,16 @@ export const api = {
     request<{ word: string; rhyme_key: string; matches: RhymeMatch[] }>(
       `/api/prosody/rhymes?word=${encodeURIComponent(word)}&min_score=${minScore}&limit=${limit}`,
     ),
+
+  getGrid: (songId: number) => request<Grid>(`/api/songs/${songId}/grid`),
+  putLineTiming: (
+    lineId: number,
+    timing: { start_bar: number; start_beat: number; syllable_offsets: SyllableAnchor[] },
+  ) =>
+    request<LineTiming>(`/api/lines/${lineId}/timing`, {
+      method: 'PUT',
+      body: JSON.stringify(timing),
+    }),
+  deleteLineTiming: (lineId: number) =>
+    request<void>(`/api/lines/${lineId}/timing`, { method: 'DELETE' }),
 };

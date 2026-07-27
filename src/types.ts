@@ -50,7 +50,7 @@ export const RevisionCreate = z.object({ label: z.string().max(120).default('') 
 /** offset is sixteenth notes from the line's start; index is ordinal into analyzeLine().words.flatMap(syllables). */
 export const SyllableAnchor = z.object({
   index: z.number().int().min(0),
-  offset: z.number().min(0),
+  offset: z.number().int().min(0),
 });
 
 export const LineTimingBody = z.object({

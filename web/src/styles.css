@@ -152,6 +152,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .song-head {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -183,6 +184,44 @@ button, input, textarea { font: inherit; color: inherit; }
   color: var(--faint);
 }
 .save-state.on { color: var(--pulse); }
+
+/* ---------- tempo + transport ---------- */
+
+.tempo, .transport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tempo-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.tempo-label { white-space: nowrap; }
+
+.tempo-input, .meter-input, .bar-input, .beat-input, .bar-count-input {
+  width: 48px;
+  background: var(--sheet);
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  padding: 4px 6px;
+  text-align: center;
+}
+.beat-input { width: 56px; }
+
+.meter-select {
+  background: var(--sheet);
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  padding: 4px 3px;
+}
 
 /* ---------- sheet ---------- */
 
@@ -224,6 +263,47 @@ button, input, textarea { font: inherit; color: inherit; }
   font-size: 11px;
   color: var(--faint);
 }
+
+.sec-bars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* ---------- bar ruler ---------- */
+
+.ruler {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+}
+
+.ruler-bar {
+  flex: 0 0 auto;
+  min-width: 34px;
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 3px 4px;
+  text-align: center;
+}
+.ruler-bar-live { border-color: var(--pulse); box-shadow: 0 0 0 1px var(--pulse); }
+
+.ruler-bar-num {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.ruler-beats { display: flex; justify-content: center; gap: 2px; margin-top: 3px; }
+.ruler-beat { width: 3px; height: 3px; border-radius: 50%; background: var(--edge); }
+.ruler-bar-live .ruler-beat { background: var(--pulse); }
 
 .lines { list-style: none; margin: 0; padding: 0; }
 
@@ -294,8 +374,27 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 1px 0 3px;
 }
 .seg-guess { color: var(--warn); }
+.syl { cursor: pointer; border-radius: 3px; }
 .syl.stress-1 { color: var(--pulse); }
 .dot { color: var(--edge); font-weight: 400; padding: 0 1px; }
+
+/* pinned = an explicit anchor; live = sounding right now during playback.
+   Both reuse --pulse rather than adding a second accent colour. */
+.syl-pinned { background: var(--pulse); color: #0d1a1c; padding: 0 2px; }
+.syl-live { box-shadow: 0 0 0 2px var(--pulse); }
+
+/* ---------- per-line timing controls ---------- */
+
+.timing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+.timing-field { display: flex; align-items: center; gap: 4px; }
 
 /* ---------- rhyme tab ---------- */
 
@@ -419,4 +518,6 @@ button, input, textarea { font: inherit; color: inherit; }
   .rail, .inspector { border: 0; border-bottom: 1px solid var(--edge); }
   .stage { padding: 18px 16px 60px; }
   .line { grid-template-columns: 60px minmax(0, 1fr) 18px 16px; gap: 8px; }
+  .tempo, .transport { flex-wrap: wrap; }
+  .timing-row { flex-wrap: wrap; }
 }
