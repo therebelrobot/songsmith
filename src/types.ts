@@ -11,7 +11,16 @@ export const SongCreate = z.object({
   notes: z.string().max(20000).default(''),
 });
 
-export const SongPatch = SongCreate.partial();
+export const SongPatch = z
+  .object({
+    title: z.string().min(1).max(200),
+    song_key: z.string().max(16).nullish(),
+    tempo_bpm: z.number().min(20).max(400).nullish(),
+    meter_num: z.number().int().min(1).max(32),
+    meter_den: z.number().int().refine((n) => [1, 2, 4, 8, 16].includes(n)),
+    notes: z.string().max(20000),
+  })
+  .partial();
 
 export const SectionCreate = z.object({
   name: z.string().min(1).max(80).default('Verse'),
