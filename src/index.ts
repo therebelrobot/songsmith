@@ -9,6 +9,7 @@ import songRoutes from './routes/songs';
 import lineRoutes from './routes/lines';
 import prosodyRoutes from './routes/prosody';
 import timingRoutes from './routes/timing';
+import chordRoutes from './routes/chords';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 5180);
@@ -51,6 +52,7 @@ await app.register(songRoutes);
 await app.register(lineRoutes);
 await app.register(prosodyRoutes);
 await app.register(timingRoutes);
+await app.register(chordRoutes);
 
 // Phase 1 ships no UI. When the Vite build lands in public/, this serves it and
 // falls through to index.html so client-side routing works.

@@ -98,3 +98,37 @@ export interface LineTimingRow {
   start_beat: number;
   syllable_offsets_json: string;
 }
+
+/**
+ * `replace` disambiguates a write onto an occupied (song_id, bar, beat) slot:
+ * false (the default) returns a 409 with the occupant; true overwrites it
+ * deliberately. See idx_chords_pos in schema.sql.
+ */
+export const ChordCreate = z.object({
+  bar: z.number().int().min(1),
+  beat: z.number().min(1).default(1),
+  symbol: z.string().min(1).max(24),
+  duration_beats: z.number().min(0.25).max(64).default(4),
+  replace: z.boolean().default(false),
+});
+
+export const ChordPatch = z.object({
+  bar: z.number().int().min(1).optional(),
+  beat: z.number().min(1).optional(),
+  symbol: z.string().min(1).max(24).optional(),
+  duration_beats: z.number().min(0.25).max(64).optional(),
+  replace: z.boolean().default(false),
+});
+
+export const TransposeBody = z.object({
+  semitones: z.number().int().min(-11).max(11),
+});
+
+export interface ChordRow {
+  id: number;
+  song_id: number;
+  bar: number;
+  beat: number;
+  symbol: string;
+  duration_beats: number;
+}

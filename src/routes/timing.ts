@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { db, touchSong } from '../db';
 import { resolveLineTiming } from '../timing/resolve';
+import { placeChords, type GridSyllableInput } from '../timing/leadsheet';
 import { songIdOfLine } from './lines';
-import { IdParam, LineTimingBody, type LineTimingRow, type SongRow } from '../types';
+import { IdParam, LineTimingBody, type LineTimingRow, type SongRow, type ChordRow } from '../types';
 
 interface GridRow {
   line_id: number;
@@ -69,27 +70,40 @@ export default async function timingRoutes(app: FastifyInstance) {
       )
       .all(id) as unknown as GridRow[];
 
+    const lines = rows.map((r) => {
+      const anchors = JSON.parse(r.syllable_offsets_json) as { index: number; offset: number }[];
+      const pinned = new Set(anchors.map((a) => a.index));
+      return {
+        line_id: r.line_id,
+        start_bar: r.start_bar,
+        start_beat: r.start_beat,
+        // `pinned` marks which syllables are explicit anchors vs interpolated —
+        // the client needs this to render pin state, but it's presentation,
+        // not maths, so it's added here rather than in resolveLineTiming.
+        syllables: resolveLineTiming(
+          { startBar: r.start_bar, startBeat: r.start_beat, syllableOffsets: anchors },
+          r.syllable_count,
+          beatsPerBar,
+        ).map((s) => ({ ...s, pinned: pinned.has(s.index) })),
+      };
+    });
+
+    const chordRows = db
+      .prepare('SELECT * FROM chords WHERE song_id = ? ORDER BY bar, beat')
+      .all(id) as unknown as ChordRow[];
+    const allSyllables: GridSyllableInput[] = lines.flatMap((l) =>
+      l.syllables.map((s) => ({ line_id: l.line_id, index: s.index, bar: s.bar, beat: s.beat })),
+    );
+    // Placement is pure and shared with src/timing/leadsheet.ts's tests, so the
+    // client's inline rendering can never drift from what this endpoint says.
+    const chords = placeChords(chordRows, allSyllables, beatsPerBar);
+
     return {
       meter_num: song.meter_num,
       meter_den: song.meter_den,
       tempo_bpm: song.tempo_bpm,
-      lines: rows.map((r) => {
-        const anchors = JSON.parse(r.syllable_offsets_json) as { index: number; offset: number }[];
-        const pinned = new Set(anchors.map((a) => a.index));
-        return {
-          line_id: r.line_id,
-          start_bar: r.start_bar,
-          start_beat: r.start_beat,
-          // `pinned` marks which syllables are explicit anchors vs interpolated —
-          // the client needs this to render pin state, but it's presentation,
-          // not maths, so it's added here rather than in resolveLineTiming.
-          syllables: resolveLineTiming(
-            { startBar: r.start_bar, startBeat: r.start_beat, syllableOffsets: anchors },
-            r.syllable_count,
-            beatsPerBar,
-          ).map((s) => ({ ...s, pinned: pinned.has(s.index) })),
-        };
-      }),
+      lines,
+      chords,
     };
   });
 }
