@@ -11,6 +11,7 @@ services:
       PORT: "5180"
       SONGSMITH_DB: /app/data/songsmith.db
       SONGSMITH_TOKEN: "${SONGSMITH_TOKEN:?set SONGSMITH_TOKEN in .env}"
+      SONGSMITH_CMUDICT: /app/data/cmudict-0.7b.txt
       LOG_LEVEL: info
     volumes:
       # The database lives on the host so rebuilding the image never touches it.
