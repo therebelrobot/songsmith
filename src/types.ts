@@ -47,6 +47,18 @@ export const AnalyzeBody = z.object({
 
 export const RevisionCreate = z.object({ label: z.string().max(120).default('') });
 
+/** offset is sixteenth notes from the line's start; index is ordinal into analyzeLine().words.flatMap(syllables). */
+export const SyllableAnchor = z.object({
+  index: z.number().int().min(0),
+  offset: z.number().min(0),
+});
+
+export const LineTimingBody = z.object({
+  start_bar: z.number().int().min(1),
+  start_beat: z.number().min(1).default(1),
+  syllable_offsets: z.array(SyllableAnchor).max(500).default([]),
+});
+
 export interface SongRow {
   id: number;
   title: string;
@@ -78,4 +90,11 @@ export interface LineRow {
   rhyme_key: string | null;
   syllable_count: number;
   updated_at: string;
+}
+
+export interface LineTimingRow {
+  line_id: number;
+  start_bar: number;
+  start_beat: number;
+  syllable_offsets_json: string;
 }

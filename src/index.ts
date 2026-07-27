@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import songRoutes from './routes/songs';
 import lineRoutes from './routes/lines';
 import prosodyRoutes from './routes/prosody';
+import timingRoutes from './routes/timing';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 5180);
@@ -49,6 +50,7 @@ app.get('/healthz', async () => ({ ok: true }));
 await app.register(songRoutes);
 await app.register(lineRoutes);
 await app.register(prosodyRoutes);
+await app.register(timingRoutes);
 
 // Phase 1 ships no UI. When the Vite build lands in public/, this serves it and
 // falls through to index.html so client-side routing works.

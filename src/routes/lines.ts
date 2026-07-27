@@ -11,14 +11,14 @@ import {
   type LineRow,
 } from '../types';
 
-function songIdOfSection(sectionId: number): number | null {
+export function songIdOfSection(sectionId: number): number | null {
   const r = db.prepare('SELECT song_id FROM sections WHERE id = ?').get(sectionId) as
     | { song_id: number }
     | undefined;
   return r?.song_id ?? null;
 }
 
-function songIdOfLine(lineId: number): number | null {
+export function songIdOfLine(lineId: number): number | null {
   const r = db
     .prepare('SELECT s.song_id AS song_id FROM lines l JOIN sections s ON s.id = l.section_id WHERE l.id = ?')
     .get(lineId) as { song_id: number } | undefined;
