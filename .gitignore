@@ -1,0 +1,9 @@
+node_modules
+dist
+public
+.env
+data/songsmith.db*
+data/cmudict-0.7b.txt
+data/CMUDICT-LICENSE.txt
+.DS_Store
+*.tsbuildinfo
