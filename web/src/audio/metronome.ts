@@ -10,11 +10,21 @@ const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 const SIXTEENTHS_PER_BEAT = 4;
 
+/** A chord voiced into playable tones (src/chords.ts's voiceChord), on the same bar/beat grid as the metronome click. */
+export interface ChordEvent {
+  bar: number;
+  beat: number;
+  durationBeats: number;
+  frequencies: number[];
+}
+
 export interface MetronomeOptions {
   bpm: number;
   beatsPerBar: number;
   /** fires once per sixteenth note, scheduled to land close to real playback time */
   onTick?: (bar: number, beat: number) => void;
+  /** sounded on the same lookahead clock as the click, so chords never drift from the beat */
+  chords?: ChordEvent[];
 }
 
 export class Metronome {
@@ -87,11 +97,37 @@ export class Metronome {
       osc.connect(gain).connect(ctx.destination);
       osc.start(time);
       osc.stop(time + 0.06);
+
+      const chord = this.opts.chords?.find((c) => c.bar === bar && c.beat === beat);
+      if (chord) this.playChord(chord, time);
     }
 
     if (this.opts.onTick) {
       const delayMs = Math.max(0, (time - ctx.currentTime) * 1000);
       window.setTimeout(() => this.opts.onTick?.(bar, beat), delayMs);
+    }
+  }
+
+  /** Polyphonic voice: one oscillator per tone, summed through a shared gain envelope. */
+  private playChord(chord: ChordEvent, time: number): void {
+    const ctx = this.ctx;
+    if (!ctx || chord.frequencies.length === 0) return;
+    const seconds = (60 / this.opts.bpm) * chord.durationBeats;
+    const peak = 0.6 / chord.frequencies.length;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(peak, time + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + seconds);
+    gain.connect(ctx.destination);
+
+    for (const frequency of chord.frequencies) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = frequency;
+      osc.connect(gain);
+      osc.start(time);
+      osc.stop(time + seconds + 0.05);
     }
   }
 }

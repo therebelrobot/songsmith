@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   api,
   ApiError,
@@ -11,10 +11,12 @@ import {
   type SongStub,
   type SyllableAnchor,
 } from './api';
+import { diatonicChordsForKey } from './chords';
 import { Sheet, anchorsOf } from './components/Sheet';
 import { Inspector } from './components/Inspector';
 import { TempoControl } from './components/TempoControl';
 import { Transport } from './components/Transport';
+import { TransposeControl } from './components/TransposeControl';
 
 /** Which of a line's syllables is under the playhead right now, if any. */
 function landingSyllable(gridLine: GridLine | undefined, bar: number, beat: number): number | null {
@@ -42,6 +44,7 @@ export default function App() {
 
   const timers = useRef(new Map<number, number>());
   const activeLine = song?.sections.flatMap((s) => s.lines).find((l) => l.id === activeLineId) ?? null;
+  const diatonicSuggestions = useMemo(() => diatonicChordsForKey(song?.song_key ?? null), [song?.song_key]);
 
   const guard = useCallback(async (fn: () => Promise<void>) => {
     try {
@@ -148,6 +151,46 @@ export default function App() {
     if (!song) return;
     void guard(async () => {
       await api.deleteLineTiming(lineId);
+      await reload(song.id);
+    });
+  }
+
+  function onAddChord(bar: number, beat: number, symbol: string) {
+    if (!song) return;
+    void guard(async () => {
+      await api.addChord(song.id, { bar, beat, symbol });
+      await reload(song.id);
+    });
+  }
+
+  function onMoveChord(id: number, bar: number, beat: number) {
+    if (!song) return;
+    void guard(async () => {
+      await api.moveChord(id, { bar, beat });
+      await reload(song.id);
+    });
+  }
+
+  function onRenameChord(id: number, symbol: string) {
+    if (!song) return;
+    void guard(async () => {
+      await api.patchChord(id, { symbol });
+      await reload(song.id);
+    });
+  }
+
+  function onDeleteChord(id: number) {
+    if (!song) return;
+    void guard(async () => {
+      await api.deleteChord(id);
+      await reload(song.id);
+    });
+  }
+
+  function onTranspose(semitones: number) {
+    if (!song) return;
+    void guard(async () => {
+      await api.transposeSong(song.id, semitones);
       await reload(song.id);
     });
   }
@@ -271,8 +314,10 @@ export default function App() {
                 {saving ? 'saving' : 'saved'}
               </span>
               <TempoControl song={song} onChange={patchTempo} />
+              <TransposeControl song={song} onTranspose={onTranspose} />
               <Transport
                 song={song}
+                chords={grid?.chords ?? []}
                 onTick={(bar, beat) => {
                   setPlayheadBar(bar);
                   const gridLine = activeLineId
@@ -294,6 +339,7 @@ export default function App() {
               activeLineId={activeLineId}
               livePosition={livePosition}
               playheadBar={playheadBar}
+              diatonicSuggestions={diatonicSuggestions}
               onSelectLine={setActiveLineId}
               onEditLine={editLine}
               onAddLine={(sectionId, afterId) =>
@@ -343,6 +389,10 @@ export default function App() {
               onSetLineBarBeat={onSetLineBarBeat}
               onToggleAnchor={onToggleAnchor}
               onClearTiming={onClearTiming}
+              onAddChord={onAddChord}
+              onMoveChord={onMoveChord}
+              onRenameChord={onRenameChord}
+              onDeleteChord={onDeleteChord}
             />
           </>
         )}

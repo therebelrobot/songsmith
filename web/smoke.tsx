@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Sheet } from './src/components/Sheet';
 import { Inspector } from './src/components/Inspector';
-import type { Grid, Song } from './src/api';
+import type { Grid, PlacedChord, Song } from './src/api';
 
 const base = process.env.BASE ?? 'http://localhost:5183';
 
@@ -15,9 +15,37 @@ const noopBar = () => {};
 const noopBeat = () => {};
 const noopIdx = () => {};
 
-function emptyGrid(song: Song): Grid {
-  return { meter_num: song.meter_num, meter_den: song.meter_den, tempo_bpm: song.tempo_bpm, lines: [] };
+function emptyGrid(song: Song, chords: PlacedChord[] = []): Grid {
+  return {
+    meter_num: song.meter_num,
+    meter_den: song.meter_den,
+    tempo_bpm: song.tempo_bpm,
+    lines: [],
+    chords,
+  };
 }
+
+/** Every prop a bare <Sheet> needs beyond song/grid/activeLineId/livePosition/playheadBar, so each render call below only states what it's testing. */
+const sheetHandlers = {
+  diatonicSuggestions: [] as readonly string[],
+  onSelectLine: noop,
+  onEditLine: noop,
+  onAddLine: noop,
+  onDeleteLine: noop,
+  onMoveLine: noop,
+  onRenameSection: noop,
+  onSectionBarCount: noop,
+  onAddSection: noop,
+  onDeleteSection: noop,
+  onAssignLineToBar: noopBar,
+  onSetLineBarBeat: noopBeat,
+  onToggleAnchor: noopIdx,
+  onClearTiming: noop,
+  onAddChord: noop,
+  onMoveChord: noop,
+  onRenameChord: noop,
+  onDeleteChord: noop,
+};
 
 async function main() {
 const song: Song = await (await fetch(`${base}/api/songs/1`)).json();
@@ -29,19 +57,7 @@ const sheet = renderToStaticMarkup(
     activeLineId={song.sections[0]!.lines[0]!.id}
     livePosition={null}
     playheadBar={null}
-    onSelectLine={noop}
-    onEditLine={noop}
-    onAddLine={noop}
-    onDeleteLine={noop}
-    onMoveLine={noop}
-    onRenameSection={noop}
-    onSectionBarCount={noop}
-    onAddSection={noop}
-    onDeleteSection={noop}
-    onAssignLineToBar={noopBar}
-    onSetLineBarBeat={noopBeat}
-    onToggleAnchor={noopIdx}
-    onClearTiming={noop}
+    {...sheetHandlers}
   />,
 );
 
@@ -72,25 +88,14 @@ const barredSheet = renderToStaticMarkup(
     activeLineId={null}
     livePosition={null}
     playheadBar={2}
-    onSelectLine={noop}
-    onEditLine={noop}
-    onAddLine={noop}
-    onDeleteLine={noop}
-    onMoveLine={noop}
-    onRenameSection={noop}
-    onSectionBarCount={noop}
-    onAddSection={noop}
-    onDeleteSection={noop}
-    onAssignLineToBar={noopBar}
-    onSetLineBarBeat={noopBeat}
-    onToggleAnchor={noopIdx}
-    onClearTiming={noop}
+    {...sheetHandlers}
   />,
 );
 const barTicks = (barredSheet.match(/class="ruler-bar-num"/g) ?? []).length;
 assert('bar ruler renders one tick per bar', barTicks === 4, `${barTicks} ticks for bar_count=4`);
 assert('bar ruler numbers the bars from 1', barredSheet.includes('>1<') && barredSheet.includes('>4<'));
 assert('bar ruler highlights the live bar', barredSheet.includes('ruler-bar-live'));
+assert('bar ruler renders an empty chord slot per beat', barredSheet.includes('class="chord-slot"'));
 
 const unbarredSheet = renderToStaticMarkup(
   <Sheet
@@ -99,19 +104,7 @@ const unbarredSheet = renderToStaticMarkup(
     activeLineId={null}
     livePosition={null}
     playheadBar={null}
-    onSelectLine={noop}
-    onEditLine={noop}
-    onAddLine={noop}
-    onDeleteLine={noop}
-    onMoveLine={noop}
-    onRenameSection={noop}
-    onSectionBarCount={noop}
-    onAddSection={noop}
-    onDeleteSection={noop}
-    onAssignLineToBar={noopBar}
-    onSetLineBarBeat={noopBeat}
-    onToggleAnchor={noopIdx}
-    onClearTiming={noop}
+    {...sheetHandlers}
   />,
 );
 assert('no ruler when a section has no bar_count', !unbarredSheet.includes('class="ruler"'));
@@ -137,6 +130,7 @@ const pinnedGrid: Grid = {
       })),
     },
   ],
+  chords: [],
 };
 const pinnedSheet = renderToStaticMarkup(
   <Sheet
@@ -145,19 +139,7 @@ const pinnedSheet = renderToStaticMarkup(
     activeLineId={anchorLine.id}
     livePosition={flatSyllableCount > 1 ? [anchorLine.id, 1] : null}
     playheadBar={1}
-    onSelectLine={noop}
-    onEditLine={noop}
-    onAddLine={noop}
-    onDeleteLine={noop}
-    onMoveLine={noop}
-    onRenameSection={noop}
-    onSectionBarCount={noop}
-    onAddSection={noop}
-    onDeleteSection={noop}
-    onAssignLineToBar={noopBar}
-    onSetLineBarBeat={noopBeat}
-    onToggleAnchor={noopIdx}
-    onClearTiming={noop}
+    {...sheetHandlers}
   />,
 );
 assert(
@@ -171,6 +153,61 @@ assert(
   flatSyllableCount <= 1 ? 'skipped: fixture line has too few syllables' : '',
 );
 assert('a placed line shows an Unplace control', pinnedSheet.includes('Unplace'));
+
+// --- chords: inline placement and the unplaced-on-ruler fallback ---
+
+const placedChord: PlacedChord = {
+  id: 101,
+  song_id: song.id,
+  bar: 1,
+  beat: 1,
+  symbol: 'Am7',
+  duration_beats: 4,
+  line_id: anchorLine.id,
+  syllable_index: 0,
+};
+const chordGrid: Grid = { ...pinnedGrid, chords: [placedChord] };
+const chordSheet = renderToStaticMarkup(
+  <Sheet
+    song={song}
+    grid={chordGrid}
+    activeLineId={anchorLine.id}
+    livePosition={null}
+    playheadBar={null}
+    {...sheetHandlers}
+  />,
+);
+assert(
+  'a placed chord renders inline in the syllable\'s chord slot',
+  flatSyllableCount === 0 || (chordSheet.includes('syl-chord') && chordSheet.includes('Am7')),
+  flatSyllableCount === 0 ? 'skipped: fixture line has no syllables' : '',
+);
+
+const unplacedChord: PlacedChord = {
+  id: 102,
+  song_id: song.id,
+  bar: 2,
+  beat: 3,
+  symbol: 'Gsus4',
+  duration_beats: 2,
+  line_id: null,
+  syllable_index: null,
+};
+const unplacedSong: Song = { ...song, sections: [{ ...song.sections[0]!, bar_count: 4 }] };
+const unplacedSheet = renderToStaticMarkup(
+  <Sheet
+    song={unplacedSong}
+    grid={emptyGrid(song, [unplacedChord])}
+    activeLineId={null}
+    livePosition={null}
+    playheadBar={null}
+    {...sheetHandlers}
+  />,
+);
+assert(
+  'a chord with no syllable in range renders as a chip on the bar ruler',
+  unplacedSheet.includes('class="chord-chip"') && unplacedSheet.includes('Gsus4'),
+);
 
 const inspector = renderToStaticMarkup(
   <Inspector
@@ -198,19 +235,7 @@ const emptySheet = renderToStaticMarkup(
     activeLineId={null}
     livePosition={null}
     playheadBar={null}
-    onSelectLine={noop}
-    onEditLine={noop}
-    onAddLine={noop}
-    onDeleteLine={noop}
-    onMoveLine={noop}
-    onRenameSection={noop}
-    onSectionBarCount={noop}
-    onAddSection={noop}
-    onDeleteSection={noop}
-    onAssignLineToBar={noopBar}
-    onSetLineBarBeat={noopBeat}
-    onToggleAnchor={noopIdx}
-    onClearTiming={noop}
+    {...sheetHandlers}
   />,
 );
 assert('empty section shows an invitation', emptySheet.includes('Write the first line'));

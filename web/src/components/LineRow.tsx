@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { GridLine, Line } from '../api';
+import type { GridLine, Line, PlacedChord } from '../api';
 import { StressLine, Segmentation, scansionLabel } from './Scansion';
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   active: boolean;
   gridLine?: GridLine;
   liveIndex?: number | null;
+  chords: PlacedChord[];
   onFocus: () => void;
   onChange: (text: string) => void;
   onSplitBelow: () => void;
@@ -23,6 +24,7 @@ export function LineRow({
   active,
   gridLine,
   liveIndex,
+  chords,
   onFocus,
   onChange,
   onSplitBelow,
@@ -52,6 +54,9 @@ export function LineRow({
 
   const estimated = line.syllables.some((w) => !w.known);
   const pinned = gridLine ? new Set(gridLine.syllables.filter((s) => s.pinned).map((s) => s.index)) : undefined;
+  const chordsByIndex = new Map(
+    chords.filter((c) => c.syllable_index !== null).map((c) => [c.syllable_index as number, c.symbol]),
+  );
 
   return (
     <li
@@ -106,6 +111,7 @@ export function LineRow({
             words={line.syllables}
             pinned={pinned}
             liveIndex={liveIndex}
+            chordsByIndex={chordsByIndex}
             onToggleAnchor={onToggleAnchor}
           />
         ) : null}

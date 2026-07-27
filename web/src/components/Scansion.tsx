@@ -46,16 +46,22 @@ export function scansionLabel(words: WordProsody[]): string {
  * When `onToggleAnchor` is given, clicking a syllable pins it to its current
  * beat position (or unpins it if already pinned) — this is the whole
  * anchoring interaction, no drag, no timeline.
+ *
+ * Each syllable is a two-row flex column — chord slot on top, syllable below
+ * — rather than monospace padding, so a chord symbol wider than its syllable
+ * just widens that column instead of breaking alignment with its neighbours.
  */
 export function Segmentation({
   words,
   pinned,
   liveIndex,
+  chordsByIndex,
   onToggleAnchor,
 }: {
   words: WordProsody[];
   pinned?: ReadonlySet<number>;
   liveIndex?: number | null;
+  chordsByIndex?: ReadonlyMap<number, string>;
   onToggleAnchor?: (index: number) => void;
 }) {
   let index = -1;
@@ -70,27 +76,32 @@ export function Segmentation({
             const classes = ['syl', `stress-${s.stress}`];
             if (isPinned) classes.push('syl-pinned');
             if (liveIndex === i) classes.push('syl-live');
+            const chord = chordsByIndex?.get(i);
             return (
-              <span
-                key={si}
-                className={classes.join(' ')}
-                role={onToggleAnchor ? 'button' : undefined}
-                tabIndex={onToggleAnchor ? 0 : undefined}
-                title={onToggleAnchor ? (isPinned ? 'click to unpin' : 'click to pin to this beat') : undefined}
-                onClick={onToggleAnchor ? () => onToggleAnchor(i) : undefined}
-                onKeyDown={
-                  onToggleAnchor
-                    ? (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onToggleAnchor(i);
+              <span key={si} className="syl-col">
+                <span className="syl-chord" aria-hidden={chord ? undefined : 'true'}>
+                  {chord ?? ' '}
+                </span>
+                <span
+                  className={classes.join(' ')}
+                  role={onToggleAnchor ? 'button' : undefined}
+                  tabIndex={onToggleAnchor ? 0 : undefined}
+                  title={onToggleAnchor ? (isPinned ? 'click to unpin' : 'click to pin to this beat') : undefined}
+                  onClick={onToggleAnchor ? () => onToggleAnchor(i) : undefined}
+                  onKeyDown={
+                    onToggleAnchor
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onToggleAnchor(i);
+                          }
                         }
-                      }
-                    : undefined
-                }
-              >
-                {s.text}
-                {si < w.syllables.length - 1 ? <b className="dot">·</b> : null}
+                      : undefined
+                  }
+                >
+                  {s.text}
+                  {si < w.syllables.length - 1 ? <b className="dot">·</b> : null}
+                </span>
               </span>
             );
           })}

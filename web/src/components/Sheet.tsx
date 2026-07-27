@@ -11,6 +11,7 @@ interface Props {
   /** [lineId, syllableIndex] of the syllable currently sounding, during playback */
   livePosition: readonly [number, number] | null;
   playheadBar: number | null;
+  diatonicSuggestions: readonly string[];
   onSelectLine: (id: number) => void;
   onEditLine: (id: number, text: string) => void;
   onAddLine: (sectionId: number, afterId?: number) => void;
@@ -24,6 +25,10 @@ interface Props {
   onSetLineBarBeat: (lineId: number, startBar: number, startBeat: number) => void;
   onToggleAnchor: (lineId: number, index: number) => void;
   onClearTiming: (lineId: number) => void;
+  onAddChord: (bar: number, beat: number, symbol: string) => void;
+  onMoveChord: (id: number, bar: number, beat: number) => void;
+  onRenameChord: (id: number, symbol: string) => void;
+  onDeleteChord: (id: number) => void;
 }
 
 export function Sheet({
@@ -32,6 +37,7 @@ export function Sheet({
   activeLineId,
   livePosition,
   playheadBar,
+  diatonicSuggestions,
   onSelectLine,
   onEditLine,
   onAddLine,
@@ -45,8 +51,13 @@ export function Sheet({
   onSetLineBarBeat,
   onToggleAnchor,
   onClearTiming,
+  onAddChord,
+  onMoveChord,
+  onRenameChord,
+  onDeleteChord,
 }: Props) {
   const dragged = useRef<number | null>(null);
+  const draggedChord = useRef<number | null>(null);
   const beatsPerBar = song.meter_num;
 
   // Bars are a single timeline across the whole song: each section occupies
@@ -110,6 +121,23 @@ export function Sheet({
                   const from = dragged.current;
                   if (from !== null) onAssignLineToBar(from, bar);
                 }}
+                chords={
+                  grid?.chords.filter(
+                    (c) => c.bar >= sectionStartBar && c.bar < sectionStartBar + (section.bar_count ?? 0),
+                  ) ?? []
+                }
+                diatonicSuggestions={diatonicSuggestions}
+                onAddChord={onAddChord}
+                onRenameChord={onRenameChord}
+                onDeleteChord={onDeleteChord}
+                onDragStartChord={(id) => {
+                  draggedChord.current = id;
+                }}
+                onDropChordSlot={(bar, beat) => {
+                  const id = draggedChord.current;
+                  draggedChord.current = null;
+                  if (id !== null) onMoveChord(id, bar, beat);
+                }}
               />
             ) : null}
 
@@ -127,6 +155,7 @@ export function Sheet({
                   const gridLine = grid?.lines.find((l) => l.line_id === line.id);
                   const liveIndex =
                     livePosition && livePosition[0] === line.id ? livePosition[1] : null;
+                  const lineChords = grid?.chords.filter((c) => c.line_id === line.id) ?? [];
                   return (
                     <LineRow
                       key={line.id}
@@ -134,6 +163,7 @@ export function Sheet({
                       active={line.id === activeLineId}
                       gridLine={gridLine}
                       liveIndex={liveIndex}
+                      chords={lineChords}
                       onFocus={() => onSelectLine(line.id)}
                       onChange={(text) => onEditLine(line.id, text)}
                       onSplitBelow={() => onAddLine(section.id, line.id)}

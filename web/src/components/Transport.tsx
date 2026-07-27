@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Metronome } from '../audio/metronome';
-import type { Song } from '../api';
+import type { PlacedChord, Song } from '../api';
+import { voiceChord } from '../chords';
 
 interface Props {
   song: Song;
+  chords: PlacedChord[];
   onTick: (bar: number, beat: number) => void;
   onStop: () => void;
 }
 
 /** Play/stop plus a "from bar" field. All audio runs here, client-side only. */
-export function Transport({ song, onTick, onStop }: Props) {
+export function Transport({ song, chords, onTick, onStop }: Props) {
   const [playing, setPlaying] = useState(false);
   const [fromBar, setFromBar] = useState(1);
   const metroRef = useRef<Metronome | null>(null);
@@ -18,7 +20,20 @@ export function Transport({ song, onTick, onStop }: Props) {
 
   function play() {
     if (!song.tempo_bpm) return;
-    const m = new Metronome({ bpm: song.tempo_bpm, beatsPerBar: song.meter_num, onTick });
+    const chordEvents = chords
+      .map((c) => ({
+        bar: c.bar,
+        beat: c.beat,
+        durationBeats: c.duration_beats,
+        frequencies: voiceChord(c.symbol).map((v) => v.frequency),
+      }))
+      .filter((c) => c.frequencies.length > 0);
+    const m = new Metronome({
+      bpm: song.tempo_bpm,
+      beatsPerBar: song.meter_num,
+      onTick,
+      chords: chordEvents,
+    });
     metroRef.current = m;
     m.start(fromBar);
     setPlaying(true);

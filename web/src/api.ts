@@ -91,11 +91,27 @@ export interface GridLine {
   syllables: GridSyllable[];
 }
 
+export interface Chord {
+  id: number;
+  song_id: number;
+  bar: number;
+  beat: number;
+  symbol: string;
+  duration_beats: number;
+}
+
+/** A chord plus where it lands, if anywhere — computed server-side by src/timing/leadsheet.ts. */
+export interface PlacedChord extends Chord {
+  line_id: number | null;
+  syllable_index: number | null;
+}
+
 export interface Grid {
   meter_num: number;
   meter_den: number;
   tempo_bpm: number | null;
   lines: GridLine[];
+  chords: PlacedChord[];
 }
 
 /**
@@ -207,4 +223,20 @@ export const api = {
     }),
   deleteLineTiming: (lineId: number) =>
     request<void>(`/api/lines/${lineId}/timing`, { method: 'DELETE' }),
+
+  addChord: (
+    songId: number,
+    chord: { bar: number; beat: number; symbol: string; duration_beats?: number; replace?: boolean },
+  ) =>
+    request<Chord>(`/api/songs/${songId}/chords`, { method: 'POST', body: JSON.stringify(chord) }),
+  moveChord: (id: number, patch: { bar?: number; beat?: number; replace?: boolean }) =>
+    request<Chord>(`/api/chords/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  patchChord: (id: number, patch: { symbol?: string; duration_beats?: number }) =>
+    request<Chord>(`/api/chords/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteChord: (id: number) => request<void>(`/api/chords/${id}`, { method: 'DELETE' }),
+  transposeSong: (songId: number, semitones: number) =>
+    request<{ song: Song; chords: Chord[] }>(`/api/songs/${songId}/transpose`, {
+      method: 'POST',
+      body: JSON.stringify({ semitones }),
+    }),
 };

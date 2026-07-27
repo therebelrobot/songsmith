@@ -9,6 +9,7 @@
   --pulse: #5fd9c2;
   --tab: #e5738f;
   --warn: #e8a33d;
+  --chord: #9b8fd1;
 
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -215,6 +216,13 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .beat-input { width: 56px; }
 
+.transpose { display: flex; align-items: center; gap: 8px; }
+.key-display {
+  font-family: var(--mono);
+  min-width: 28px;
+  text-align: center;
+}
+
 .meter-select {
   background: var(--sheet);
   border: 1px solid var(--edge);
@@ -305,6 +313,123 @@ button, input, textarea { font: inherit; color: inherit; }
 .ruler-beat { width: 3px; height: 3px; border-radius: 50%; background: var(--edge); }
 .ruler-bar-live .ruler-beat { background: var(--pulse); }
 
+/* ---------- chord track (on the bar ruler) ---------- */
+
+.chord-track {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.chord-slot, .chord-chip {
+  flex: 1;
+  min-width: 0;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 2px 3px;
+  cursor: pointer;
+}
+
+.chord-slot {
+  background: transparent;
+  border: 1px dashed var(--edge);
+  color: var(--edge);
+  line-height: 1.3;
+}
+.chord-slot:hover { color: var(--chord); border-color: var(--chord); }
+
+.chord-chip {
+  position: relative;
+  background: color-mix(in srgb, var(--chord) 16%, transparent);
+  border: 1px solid var(--chord);
+  color: var(--chord);
+  font-weight: 500;
+}
+.chord-chip:hover { background: color-mix(in srgb, var(--chord) 28%, transparent); }
+
+.chord-chip-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 13px;
+  height: 13px;
+  line-height: 12px;
+  border-radius: 50%;
+  background: var(--raised);
+  border: 1px solid var(--chord);
+  color: var(--chord);
+  font-size: 10px;
+  opacity: 0;
+}
+.chord-chip:hover .chord-chip-del,
+.chord-chip-del:focus-visible { opacity: 1; }
+
+.chord-editor {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.chord-input {
+  width: 100%;
+  background: var(--sheet);
+  border: 1px solid var(--chord);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  padding: 2px 3px;
+  color: var(--chord);
+}
+.chord-input-invalid { border-color: var(--warn); color: var(--warn); }
+
+.chord-editor-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  width: max-content;
+  max-width: 220px;
+}
+
+.chord-error {
+  white-space: nowrap;
+  background: var(--raised);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.chord-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px;
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+}
+
+.chord-chip-suggest {
+  background: transparent;
+  border: 1px solid var(--chord);
+  color: var(--chord);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.chord-chip-suggest:hover { background: color-mix(in srgb, var(--chord) 20%, transparent); }
+
 .lines { list-style: none; margin: 0; padding: 0; }
 
 .line {
@@ -374,6 +499,13 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 1px 0 3px;
 }
 .seg-guess { color: var(--warn); }
+
+/* Two-row column per syllable: chord slot on top, syllable below. The column
+   takes the width of its widest row, so a chord symbol wider than its
+   syllable just widens that one column — no monospace padding to keep in sync. */
+.syl-col { display: flex; flex-direction: column; align-items: start; }
+.syl-chord { color: var(--chord); font-size: 10px; line-height: 1.4; white-space: nowrap; }
+
 .syl { cursor: pointer; border-radius: 3px; }
 .syl.stress-1 { color: var(--pulse); }
 .dot { color: var(--edge); font-weight: 400; padding: 0 1px; }
