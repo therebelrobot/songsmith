@@ -65,6 +65,15 @@ button, input, textarea { font: inherit; color: inherit; }
   overflow-y: auto;
 }
 
+/* Compact top bar, drawer scrim, and drawer close buttons: all desktop-invisible
+   by default (see the "narrow screens" section for what they become on mobile,
+   where the song list / header controls / inspector move off-screen into
+   drawers reachable from here, so the lyric sheet is the only thing that
+   occupies the screen on open). */
+.mobile-bar { display: none; }
+.scrim { display: none; }
+.drawer-close { display: none; }
+
 .brand {
   font-family: var(--mono);
   font-size: 15px;
@@ -541,6 +550,11 @@ button, input, textarea { font: inherit; color: inherit; }
   cursor: help;
 }
 
+/* Hidden on screens wide enough to show the sparkline inline (see .gutter-scan
+   below); shown instead, behind a tap on the gutter, at mobile widths where
+   the sparkline moves out of the line row to save horizontal space. */
+.gutter-scan-below { display: none; }
+
 .count {
   font-family: var(--mono);
   font-size: 11px;
@@ -790,12 +804,196 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 /* ---------- narrow screens ---------- */
-
+/*
+ * The lyric sheet is the only thing that should occupy the screen on a
+ * phone. The song list (.rail), the header controls (.song-head), and the
+ * inspector all become off-canvas drawers, reachable from .mobile-bar — a
+ * compact sticky top bar that replaces the desktop three-column shell. Each
+ * drawer is the same element used at desktop width (same data, same
+ * handlers), just repositioned; only one is ever open at a time (App.tsx's
+ * `mobilePanel` state), and a scrim behind it closes it on tap, same as
+ * Escape.
+ */
 @media (max-width: 940px) {
-  .app { grid-template-columns: 1fr; height: auto; }
-  .rail, .inspector { border: 0; border-bottom: 1px solid var(--edge); }
-  .stage { padding: 18px 16px 60px; }
-  .line { grid-template-columns: 60px minmax(0, 1fr) 18px 16px; gap: 8px; }
+  /* align-content: start — otherwise Grid's default stretch spreads leftover
+     viewport height across the implicit rows, inflating .mobile-bar's row
+     to way more than its content needs. */
+  .app { grid-template-columns: 1fr; height: auto; min-height: 100%; align-content: start; }
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: var(--ground);
+    border-bottom: 1px solid var(--edge);
+    padding: 10px 12px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+  }
+  .mobile-bar-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid var(--edge);
+    border-radius: var(--r);
+    color: var(--dim);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mobile-bar-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 15;
+  }
+
+  .drawer-close {
+    display: block;
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 0 14px;
+    margin-bottom: 10px;
+    background: transparent;
+    border: 1px solid var(--edge);
+    border-radius: var(--r);
+    color: var(--dim);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Both side drawers sit below the sticky mobile bar (which stays on top,
+     z-index-wise, so its own buttons stay reachable while a drawer is open)
+     rather than under it, where their own close buttons would be hidden. */
+  .rail, .inspector {
+    top: calc(64px + env(safe-area-inset-top));
+    bottom: 0;
+  }
+
+  /* .rail (song list) slides in from the left. */
+  .rail {
+    position: fixed;
+    left: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    width: min(85vw, 320px);
+    border-right: 1px solid var(--edge);
+    padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .rail.rail-open { transform: translateX(0); }
+
+  /* .inspector slides in from the right. */
+  .inspector {
+    position: fixed;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    width: min(85vw, 320px);
+    border-left: 1px solid var(--edge);
+    padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+  }
+  .inspector.inspector-open { transform: translateX(0); }
+
+  /* .song-head (title, key, tempo, transpose, export, transport, …) becomes a
+     bottom sheet — the "single control" that opens the collapsed header. */
+  .song-head {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 20;
+    max-height: 75vh;
+    overflow-y: auto;
+    flex-wrap: wrap;
+    background: var(--ground);
+    border-top: 1px solid var(--edge);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform 0.2s ease;
+  }
+  .song-head.song-head-open { transform: translateY(0); }
+  .song-head .drawer-close { flex-basis: 100%; }
+
+  .stage { padding: 16px 14px calc(60px + env(safe-area-inset-bottom)); }
+
   .tempo, .transport { flex-wrap: wrap; }
   .timing-row { flex-wrap: wrap; }
+
+  /* ---- lines: stack instead of a tight 5-column grid ---- */
+  .line {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--edge);
+    border-radius: 0;
+  }
+  .gutter { width: auto; }
+  .reorder { flex-direction: row; gap: 10px; margin-top: 2px; }
+  .reorder-btn { min-width: 44px; min-height: 44px; font-size: 14px; }
+  .tab, .alt-count { align-self: flex-start; }
+
+  /* The sparkline moves out of the (now single-count) gutter into a
+     tap-to-reveal row below the line, rather than costing width on every
+     row — the gutter otherwise runs close to a sixth of a 380px screen. */
+  .gutter-scan { display: none; }
+  .gutter-scan-below { display: block; margin: 0 0 2px; }
+
+  /* ---- bar ruler: scroll at full size instead of compressing ---- */
+  .ruler-bar { min-width: calc(var(--beats, 4) * 44px + (var(--beats, 4) - 1) * 2px); }
+  .chord-slot, .chord-chip {
+    flex: 0 0 44px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .chord-chip-del { width: 22px; height: 22px; line-height: 20px; font-size: 13px; top: -8px; right: -8px; }
+
+  /* ---- general touch targets ---- */
+  .ghost, .solid, .song-btn, .tab-btn, .link, .add-line, .add-section {
+    min-height: 44px;
+  }
+  .ghost, .solid { display: inline-flex; align-items: center; justify-content: center; }
+  .song-btn { display: flex; flex-direction: column; justify-content: center; }
+}
+
+/* iOS zooms the whole page when a focused form control resolves under 16px —
+   scoped to actual touch pointers (not just a narrow desktop window) since
+   that's what triggers the zoom, and applied regardless of viewport width. */
+@media (hover: none) and (pointer: coarse) {
+  .line-input,
+  .sec-name,
+  .key-input,
+  .tempo-input,
+  .meter-input,
+  .bar-input,
+  .beat-input,
+  .bar-count-input,
+  .meter-select,
+  .chord-input,
+  .word-input,
+  .export-import-text {
+    font-size: 16px;
+  }
 }

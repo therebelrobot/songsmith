@@ -11,13 +11,31 @@ interface Props {
   onDiscard: (index: number) => void;
   onRestored: () => void;
   onError: (message: string) => void;
+  /** Whether the inspector's mobile drawer is open — meaningless above the mobile breakpoint, where it's always visible in place. */
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export function Inspector({ line, songId, onPromote, onStash, onDiscard, onRestored, onError }: Props) {
+export function Inspector({
+  line,
+  songId,
+  onPromote,
+  onStash,
+  onDiscard,
+  onRestored,
+  onError,
+  mobileOpen,
+  onCloseMobile,
+}: Props) {
   const [tab, setTab] = useState<Tab>('alternates');
 
   return (
-    <aside className="inspector">
+    <aside className={mobileOpen ? 'inspector inspector-open' : 'inspector'}>
+      {onCloseMobile ? (
+        <button className="drawer-close" onClick={onCloseMobile}>
+          Close
+        </button>
+      ) : null}
       <nav className="tabs" role="tablist">
         {(['alternates', 'rhymes', 'history'] as Tab[]).map((t) => (
           <button

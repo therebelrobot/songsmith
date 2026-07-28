@@ -56,6 +56,7 @@ export function LineRow({
 }: Props) {
   const [draft, setDraft] = useState(line.text);
   const [over, setOver] = useState(false);
+  const [scanExpanded, setScanExpanded] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Adopt server text only when this line is not the one being typed in,
@@ -111,10 +112,30 @@ export function LineRow({
         onDropOn();
       }}
     >
-      <div className="gutter" title={scansionLabel(line.syllables)}>
+      <div
+        className="gutter"
+        title={scansionLabel(line.syllables)}
+        role="button"
+        tabIndex={0}
+        aria-label={scanExpanded ? 'Hide stress sparkline' : 'Show stress sparkline'}
+        onClick={() => setScanExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setScanExpanded((v) => !v);
+          }
+        }}
+      >
         <span className={estimated ? 'count count-guess' : 'count'}>{line.syllable_count}</span>
-        <StressLine words={line.syllables} />
+        <span className="gutter-scan">
+          <StressLine words={line.syllables} />
+        </span>
       </div>
+      {scanExpanded ? (
+        <div className="gutter-scan-below">
+          <StressLine words={line.syllables} />
+        </div>
+      ) : null}
 
       <div className="line-body">
         <textarea

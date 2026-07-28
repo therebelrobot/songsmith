@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getToken, setToken, type GridLine } from './api';
 import { diatonicChordsForKey } from './chords';
 import { Sheet } from './components/Sheet';
@@ -10,6 +10,10 @@ import { ExportControls } from './components/ExportControls';
 import { ChordDisplayToggle } from './components/ChordDisplayToggle';
 import { PrintSheet } from './components/PrintSheet';
 import { useSong } from './hooks/useSong';
+import { useKeyboardAwareScroll } from './hooks/useKeyboardAwareScroll';
+
+/** Which drawer is open on a narrow viewport — the song list, the header controls, or the inspector. Exclusive: opening one closes any other. Meaningless above the mobile breakpoint, where all three render in place. */
+type MobilePanel = 'songs' | 'tools' | 'inspector' | null;
 
 /** Which of a line's syllables is under the playhead right now, if any. */
 function landingSyllable(gridLine: GridLine | undefined, bar: number, beat: number): number | null {
@@ -28,6 +32,18 @@ export default function App() {
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [playheadBar, setPlayheadBar] = useState<number | null>(null);
   const [livePosition, setLivePosition] = useState<readonly [number, number] | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+
+  useKeyboardAwareScroll();
+
+  useEffect(() => {
+    if (!mobilePanel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobilePanel(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobilePanel]);
 
   const {
     songs,
@@ -66,6 +82,8 @@ export default function App() {
     onAddLine,
     onDeleteLine,
     onMoveLine,
+    onMoveLineUp,
+    onMoveLineDown,
     onRenameSection,
     onAddSection,
     onDeleteSection,
@@ -87,11 +105,43 @@ export default function App() {
   return (
     <>
     <div className="app">
-      <nav className="rail">
+      <header className="mobile-bar">
+        <button className="mobile-bar-btn" aria-label="Open song list" onClick={() => setMobilePanel('songs')}>
+          Songs
+        </button>
+        <span className="mobile-bar-title">{song ? song.title || 'Untitled' : 'songsmith'}</span>
+        {song ? (
+          <>
+            <button className="mobile-bar-btn" aria-label="Open song tools" onClick={() => setMobilePanel('tools')}>
+              Tools
+            </button>
+            <button
+              className="mobile-bar-btn"
+              aria-label="Open inspector"
+              onClick={() => setMobilePanel('inspector')}
+            >
+              Notes
+            </button>
+          </>
+        ) : null}
+      </header>
+
+      {mobilePanel ? <div className="scrim" onClick={() => setMobilePanel(null)} /> : null}
+
+      <nav className={mobilePanel === 'songs' ? 'rail rail-open' : 'rail'}>
+        <button className="drawer-close" onClick={() => setMobilePanel(null)}>
+          Close
+        </button>
         <h1 className="brand">
           songsmith<span className="cursor" aria-hidden="true" />
         </h1>
-        <button className="solid wide" onClick={() => createSong('Untitled')}>
+        <button
+          className="solid wide"
+          onClick={() => {
+            createSong('Untitled');
+            setMobilePanel(null);
+          }}
+        >
           New song
         </button>
         <ul className="song-list">
@@ -103,7 +153,8 @@ export default function App() {
                   setActiveLineId(null);
                   setPlayheadBar(null);
                   setLivePosition(null);
-                  void reload(s.id);
+                  openSong(s.id);
+                  setMobilePanel(null);
                 }}
               >
                 <span className="song-title">{s.title}</span>
@@ -128,10 +179,13 @@ export default function App() {
         ) : null}
 
         {!song ? (
-          <p className="empty big">Pick a song on the left, or start a new one.</p>
+          <p className="empty big">Pick a song, or start a new one.</p>
         ) : (
           <>
-            <header className="song-head">
+            <header className={mobilePanel === 'tools' ? 'song-head song-head-open' : 'song-head'}>
+              <button className="drawer-close" onClick={() => setMobilePanel(null)}>
+                Done
+              </button>
               <input
                 className="song-title-input"
                 value={song.title}
@@ -201,6 +255,8 @@ export default function App() {
               onAddLine={onAddLine}
               onDeleteLine={onDeleteLine}
               onMoveLine={onMoveLine}
+              onMoveLineUp={onMoveLineUp}
+              onMoveLineDown={onMoveLineDown}
               onRenameSection={onRenameSection}
               onSectionBarCount={onSectionBarCount}
               onAddSection={onAddSection}
@@ -222,6 +278,8 @@ export default function App() {
         <Inspector
           line={activeLine}
           songId={song.id}
+          mobileOpen={mobilePanel === 'inspector'}
+          onCloseMobile={() => setMobilePanel(null)}
           onError={setError}
           onRestored={() => {
             setActiveLineId(null);
