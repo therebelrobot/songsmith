@@ -1,12 +1,14 @@
-# songsmith — phase 1 (lyric core)
+# songsmith
 
-Self-hosted, lyric-first songwriting app. Phase 1 is the lyric core: songs,
-sections, lines, alternates, revisions, offline prosody (syllable counts,
-stress, rhyme scheme, rhyme suggestions), and a React editor. No audio yet —
-that's phase 2.
+Self-hosted, lyric-first songwriting app. Songs are lyrics first: sections,
+lines, alternates, revisions, offline prosody (syllable counts, stress, rhyme
+scheme, rhyme suggestions). On top of that, a sparse timing layer maps
+syllables onto a bar/beat grid, a chord layer places leadsheet symbols on that
+same grid, and a voice-leading engine turns those symbols into the actual
+notes played and exported — all editable from a single React editor.
 
-Everything here runs with **three runtime dependencies** (`fastify`,
-`@fastify/static`, `zod`) — 71 packages in the resolved tree. There is no native
+Runs with **four runtime dependencies** (`fastify`, `@fastify/static`, `zod`,
+`tonal`) — 100 packages in the resolved production tree. There is no native
 module and no build toolchain, because storage uses Node's built-in
 `node:sqlite` rather than `better-sqlite3`.
 
@@ -93,7 +95,10 @@ Selecting a line reveals its syllable segmentation underneath in monospace
 | New line below | `Enter` in a line |
 | Line break inside a line | `Shift+Enter` |
 | Delete an empty line | `Backspace` in an empty line |
-| Reorder | drag a line onto another |
+| Reorder a line | drag a line onto another |
+| Place a line on the bar grid | drag a line onto the bar ruler, or type a bar/beat directly |
+| Pin a syllable to its current beat | click the syllable in the segmentation view |
+| Add/move/delete a chord | click an empty beat slot on the chord track, drag a chord chip to a new slot, click its `×` |
 
 **Alternates** are in the inspector. "Stash this wording" moves the current text
 into the alternates list and clears the line so you can try again; "Use this"
@@ -104,6 +109,45 @@ threshold to 0.5 and shows the match score.
 
 **History** snapshots the whole song. Restoring snapshots the current state
 first, so a restore is itself undoable.
+
+**Tempo, meter, and the bar grid.** The song header has a bpm field (type a
+number, or tap a button a few times to set it by feel) and a meter fraction.
+Selecting a line reveals a bar/beat field and a "drag onto the bar ruler, or
+pin a syllable" hint — syllable anchors are sparse (see below), so most of a
+line's timing comes from interpolation, not from placing every syllable by
+hand.
+
+**Chords** live on the bar ruler, one slot per beat, sized from each section's
+bar count and meter. Click an empty slot to add a symbol (tonal validates it as
+you type, with diatonic suggestions drawn from the song's key), click an
+existing chord to rename it, drag it to a different slot, or click its `×` to
+remove it. Chords key off the bar grid, not off lines, so rewriting a lyric
+never disturbs the progression. The same chord also renders inline, right
+before the syllable it lands on.
+
+**Transpose** shifts every chord symbol and the song key by a semitone at a
+time, using tonal so the result gets a conventional spelling (`Am` up a
+semitone is `Bbm`, not `A#m`).
+
+**Voice leading** is on by default: chords are voiced with inversions chosen to
+minimize movement from the previous chord, register-clamped to a three-octave
+window from C3 to C6. The checkbox in the song header (next to the
+save-state indicator) turns it off per song, falling back to blocked
+root-position chords — root in one octave, everything else stacked in the
+next octave up, no inversions. This one toggle is the entire UI surface for
+voice leading; the actual voicing is computed once, server-side, and both
+playback and MIDI export play exactly what it returns.
+
+**Playback** plays the resolved chord track through the Web Audio API — a
+lookahead-scheduled metronome click plus a polyphonic chord voice at each
+chord's bar/beat, using whichever notes the grid returned. "from bar" starts
+playback partway through the song.
+
+**Export, import, print** live in one small popover in the song header:
+`.chordpro` and `.mid` downloads, a ChordPro import that always creates a new
+song (never overwrites one you have open), and a print view — a plain
+leadsheet (chord symbols aligned above the lyric they land on), shown only
+under `@media print`, with no rails, buttons, or gutter.
 
 The UI uses no web fonts — it runs on a Pi that may have no internet, so
 typography is a deliberate system stack: monospace for the lyric sheet (so
@@ -120,7 +164,7 @@ syllable marks align vertically), system sans for chrome.
 | `GET` | `/api/songs` | list, newest-updated first |
 | `POST` | `/api/songs` | creates the song **and** a `Verse 1` section |
 | `GET` | `/api/songs/:id` | full tree: sections → lines → syllables, alternates, rhyme labels |
-| `PATCH` | `/api/songs/:id` | any of title, song_key, tempo_bpm, meter_num, meter_den, notes |
+| `PATCH` | `/api/songs/:id` | any of title, song_key, tempo_bpm, meter_num, meter_den, notes, voice_leading |
 | `DELETE` | `/api/songs/:id` | cascades to sections, lines, chords, revisions |
 
 ### Sections
@@ -143,6 +187,30 @@ syllable marks align vertically), system sans for chrome.
 Reordering uses `after_id` / `before_id` and a REAL `position` column. A move is
 one UPDATE of one row — no renumbering pass, which is what makes drag-reorder
 cheap when the UI lands.
+
+### Timing and the grid
+
+| Method | Path | Notes |
+|---|---|---|
+| `PUT` | `/api/lines/:id/timing` | `{ start_bar, start_beat?, syllable_offsets? }` — sparse anchors: `syllable_offsets` only needs the syllables you actually pin; everything between and after is interpolated |
+| `DELETE` | `/api/lines/:id/timing` | unplaces the line |
+| `GET` | `/api/songs/:id/grid` | the resolved timeline: every timed line's syllables at absolute bar/beat, every chord placed and voiced. The editor, ChordPro export, and MIDI export all render from this — none of them recompute the timing or voicing math themselves |
+
+`syllable_offsets` are sixteenth-note offsets from a line's own start, indexed
+by syllable ordinal — not by absolute time — so moving a line's start bar
+doesn't require rewriting every anchor.
+
+### Chords
+
+| Method | Path | Notes |
+|---|---|---|
+| `POST` | `/api/songs/:id/chords` | `{ bar, beat?, symbol, duration_beats?, replace? }` — 409s with the occupant if the slot is taken and `replace` isn't set |
+| `PATCH` | `/api/chords/:id` | `{ bar?, beat?, symbol?, duration_beats?, replace? }` |
+| `DELETE` | `/api/chords/:id` | |
+| `POST` | `/api/songs/:id/transpose` | `{ song_key?, chords: [{ id, symbol }] }` — atomic write for symbols the **client** already computed with tonal; the server never transposes on its own, so there's one transposition implementation, not two |
+
+Chords are keyed to `(song_id, bar, beat)`, never to a line — rewriting a
+lyric leaves the progression untouched.
 
 ### Revisions
 
@@ -169,21 +237,82 @@ cheap when the UI lands.
 |---|---|---|
 | `GET` | `/api/songs/:id/export.chordpro` | `text/plain`, chords inline as `[Am]` before the syllable they land on; a chord with no syllable renders as its own chord-only line |
 | `POST` | `/api/import/chordpro` | `{ text }` — creates a **new** song, never overwrites an existing one; response includes `warnings` (e.g. no `{tempo}`/`{time}` found, defaulted to 4/4) |
-| `GET` | `/api/songs/:id/export.mid` | `audio/midi`, Type-0, chord track only, same simplified voicing as playback (root octave 3, other tones octave 4). A null tempo defaults to 120 and is flagged via the `x-songsmith-default-tempo` response header rather than failing |
+| `GET` | `/api/songs/:id/export.mid` | `audio/midi`, Type-0, chord track only, voiced the same way the song's `voice_leading` toggle voices playback — inverted and register-clamped when the toggle is on, blocked root-position when it's off. A null tempo defaults to 120 and is flagged via the `x-songsmith-default-tempo` response header rather than failing |
 
 ChordPro is the round-trip format: export → import → export is byte-identical
-(see `src/export/chordpro.test.ts`). MIDI export and ChordPro serialization are
-both pure functions (`src/export/midi.ts`, `src/export/chordpro.ts`) fed by
-`buildGrid()` in `src/routes/timing.ts`, the same grid math the editor and the
-`GET .../grid` endpoint use — so export can't drift from what's on screen.
+(see `src/export/chordpro.test.ts`). MIDI export, ChordPro serialization, and
+the grid endpoint are all fed by `buildGrid()` in `src/routes/timing.ts` and
+`resolveVoicings()` in `src/timing/voiceLeading.ts` — pure functions with no
+database or Fastify imports — so none of playback, export, or the on-screen
+grid can drift from each other.
+
+## Voice leading
+
+`src/timing/voiceLeading.ts` turns a chord sequence into MIDI note arrays:
+
+- For each chord, it generates candidates — root position plus every
+  inversion — across the octave shifts that keep every note between MIDI 48
+  (C3) and 84 (C6).
+- Each candidate is scored by total voice motion from the previous chord's
+  chosen voicing (the sum of each new note's distance to its nearest note in
+  the prior voicing). The lowest score wins; ties break on the lowest bass
+  note, so the same song always voices the same way.
+- A repeated chord symbol reuses its predecessor's voicing exactly — zero
+  motion, rather than re-deriving an identical result.
+- A slash chord (`C/G`) pins the named bass regardless of what would otherwise
+  score best.
+- The first chord in a sequence has no predecessor, so it seeds in root
+  position near the middle of the register window.
+
+This is deliberately not jazz voicing — no drop-2, no rootless voicings, no
+upper-structure triads, no bass-line or melody generation, no rhythm pattern.
+Chords still sound as block hits; output is still a leadsheet, not tab or
+engraved notation. `@tonaljs/voice-leading` and `@tonaljs/voicing` (tonal's own
+voice-leading and jazz-voicing packages) were checked before writing this —
+the former only compares a candidate's top note to the previous voicing's top
+note, and the latter is a dictionary-driven jazz-voicing builder aimed at
+exactly the drop-2/rootless/upper-structure territory this app avoids. Neither
+fits the scoring above, so the search is hand-rolled on top of tonal's pitch
+math (`Chord.get`, `Note.chroma`, `Note.midi`) instead.
+
+Voicing is always derived from the chord sequence, never stored — the
+`chords` table stays `(song_id, bar, beat, symbol, duration_beats)`, so editing,
+inserting, or transposing a chord can't leave a stale voicing behind.
+
+## Migrations
+
+`src/schema.sql` is `CREATE TABLE IF NOT EXISTS` throughout, so it never alters
+an existing database — a fresh one just gets every table at its current shape.
+Anything added after the fact (so far: `songs.voice_leading`) is a numbered file
+in `src/migrations/`. On startup, `src/db.ts`:
+
+1. Checks whether the `songs` table exists yet, *before* running `schema.sql`
+   — that's what tells a brand-new database apart from an old one, since both
+   would otherwise read `PRAGMA user_version` as `0`.
+2. Runs `schema.sql` (a no-op against an existing database).
+3. A brand-new database jumps straight to the latest migration's version
+   number, since `schema.sql` already created everything at that shape. An
+   existing one applies every migration numbered above its current
+   `user_version`, in order, committing the version after each.
+
+## Testing & CI
+
+`node --test` covers the pure modules (`src/timing/*`, `src/export/*`,
+`src/prosody/*`) and the migration runner against both a fresh database and one
+seeded with a pre-migration schema. `.github/workflows/ci.yml` runs both
+typechecks, both builds, and the test suite on every push and pull request.
+
+`npm --prefix web run smoke` renders the sheet and inspector against a running
+server and asserts the gutter, rhyme tabs, segmentation, and empty states
+appear — it catches crashes, not visual regressions, and is not part of CI.
 
 ## Known behaviour, so it doesn't surprise you later
 
 **Syllable counts are careful-speech counts.** CMU has `EVERY` as three
 syllables (`EH1 V ER0 IY0`), so "counting every hour that you were gone" scores
 11 even though you'd sing it as 9. The dictionary is right about the word and
-wrong about the performance. Phase 2's beat anchoring is where you reconcile
-that — pin the syllables you actually sing and let the rest collapse.
+wrong about the performance. Beat anchoring is where you reconcile that — pin
+the syllables you actually sing and let the rest collapse.
 
 **Syllable boundaries are heuristic; counts are authoritative.** The count comes
 from the dictionary's phonemes. The orthographic split into "kett·le" is a
@@ -206,14 +335,13 @@ first `/api/prosody/*` call, so boot stays fast. Perfect-rhyme lookups after
 that are 7–8 ms; slant scans are 59–94 ms, which is why slant rhymes belong on
 an explicit button rather than a keystroke debounce.
 
-**No test suite, only a render smoke test.** `npm --prefix web run smoke`
-renders the sheet and inspector against a running server and asserts the gutter,
-rhyme tabs, segmentation, and empty states appear. It catches crashes, not
-visual regressions.
+**Voice leading is on by default, per song.** Turning it off doesn't lose
+anything — it's a display/playback choice recomputed from the same chord
+sequence every time, not a stored property of the chords themselves.
 
-**`line_timing` and `chords` tables already exist and are empty.** They are
-phase 2 and 3 targets. Creating them now means those phases add routes, not
-migrations.
+**No audio synthesis happens on the server.** It computes note numbers and
+writes MIDI bytes; both playback and MIDI decoding/rendering are the browser's
+(or your DAW's) job.
 
 ---
 
@@ -230,4 +358,12 @@ migrations.
   matters for a Pi. Parsed ourselves rather than via the `cmudict` npm
   package, which was last published in 2012, ships no types, and parses the
   3.6 MB file byte-by-byte with string concatenation.
+- `tonal` — the one dependency added past the original three, deliberately an
+  exception to the standing budget because it *removes* code rather than
+  adding it: the server used to keep a hand-rolled chord/note table in sync
+  with the tonal the client already used, verified once by hand with nothing
+  re-checking it. It resolves to 29 first-party `@tonaljs/*` packages with no
+  third-party transitive dependencies, used for pitch math only
+  (`Chord.get`, `Note.chroma`, `Note.midi`) — the voice-leading search itself
+  is hand-rolled (see "Voice leading" above).
 - Project code: Unlicense.

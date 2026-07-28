@@ -15,7 +15,7 @@
 import { Chord, Note } from 'tonal';
 
 export const REGISTER_MIN = 48; // C3
-export const REGISTER_MAX = 84; // C5
+export const REGISTER_MAX = 84; // C6
 
 export interface VoicingInput {
   symbol: string;
