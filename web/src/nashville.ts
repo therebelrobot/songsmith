@@ -24,11 +24,11 @@ import { Chord, Interval, Note } from 'tonal';
  *   normal way (nothing for major, `m` for minor): `b7`, `b3m`.
  * - Extensions and alterations carry through verbatim after the degree:
  *   `Cmaj7` in C is `1maj7`; `G7` is `57`; `Dsus4` is `2sus4`.
- * - A slash chord numbers both halves, but the two halves use different
- *   reference tonics: the root is numbered against the *song key*, the bass
- *   against the *chord's own root* — the bass number is which inversion
- *   it is, independent of key. `C/G` in C is `1/5`; `F/A` in C is `4/3`
- *   (A is the third of F, not the sixth of C).
+ * - A slash chord numbers both halves against the *same* reference — the
+ *   song key. Every number on a Nashville chart is a scale degree of the
+ *   key; that uniformity is the grammar of the system. `C/G` in C is `1/5`;
+ *   `F/A` in C is `4/6` (A is the sixth of C, not the third of F); `G/B` in
+ *   C is `5/7`.
  * - A symbol tonal can't parse renders unchanged, letter name and all.
  *   Never a wrong number, never blank.
  *
@@ -155,9 +155,9 @@ export function toNumber(symbol: string, key: string): string {
 
   let out = rootLabel.label + outSuffix;
   if (parsed.bass) {
-    // The bass half numbers against the chord's own root, not the song key —
-    // it names the inversion (which chord tone is in the bass), not a scale position.
-    out += '/' + degreeLabelFor(parsed.bass, parsed.root).label;
+    // Same reference tonic as the root: every number on the chart is a
+    // degree of the song key.
+    out += '/' + degreeLabelFor(parsed.bass, tonic).label;
   }
   return out;
 }
@@ -193,7 +193,7 @@ export function fromNumber(input: string, key: string): string | null {
 
   let out = rootNote + finalSuffix;
   if (bassDigitStr) {
-    out += '/' + noteForDegree(rootNote, Number(bassDigitStr), (bassAcc as '' | 'b' | '#') ?? '');
+    out += '/' + noteForDegree(tonic, Number(bassDigitStr), (bassAcc as '' | 'b' | '#') ?? '');
   }
 
   const chord = Chord.get(out);

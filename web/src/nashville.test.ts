@@ -35,9 +35,27 @@ test('a chord whose quality deviates from the diatonic default', () => {
   assert.equal(toNumber('Fm', 'C'), '4m');
 });
 
-test('slash chords number both halves, bass relative to the chord root', () => {
+test('slash chords number both halves against the song key, same as the root', () => {
   assert.equal(toNumber('C/G', 'C'), '1/5');
-  assert.equal(toNumber('F/A', 'C'), '4/3');
+  assert.equal(toNumber('F/A', 'C'), '4/6'); // A is the sixth of C, not the third of F
+  assert.equal(toNumber('G/B', 'C'), '5/7'); // the case that actually distinguishes key- from root-relative bass numbering
+  assert.equal(toNumber('C/Eb', 'C'), '1/b3');
+});
+
+/**
+ * Hardcoded expectations from a published Nashville Number System chart
+ * (Baldassari, "The Nashville Number System"), independent of this module's
+ * own round-trip tests — round-tripping only proves internal consistency,
+ * it can't catch a self-consistent but wrong convention.
+ */
+test('fixture table: known-correct numbers from a published chart, in G', () => {
+  assert.equal(toNumber('G', 'G'), '1');
+  assert.equal(toNumber('Am', 'G'), '2');
+  assert.equal(toNumber('Bm', 'G'), '3');
+  assert.equal(toNumber('C', 'G'), '4');
+  assert.equal(toNumber('D', 'G'), '5');
+  assert.equal(toNumber('Em', 'G'), '6');
+  assert.equal(toNumber('D/F#', 'G'), '5/7'); // classic first-inversion V chord, bass is the key's leading tone
 });
 
 test('a seventh and a sus4 carry the extension through verbatim', () => {
@@ -61,7 +79,8 @@ test('fromNumber inverts toNumber examples directly', () => {
   assert.equal(fromNumber('2maj', 'C'), 'D');
   assert.equal(fromNumber('4m', 'C'), 'Fm');
   assert.equal(fromNumber('1/5', 'C'), 'C/G');
-  assert.equal(fromNumber('4/3', 'C'), 'F/A');
+  assert.equal(fromNumber('4/6', 'C'), 'F/A');
+  assert.equal(fromNumber('5/7', 'C'), 'G/B');
   assert.equal(fromNumber('57', 'C'), 'G7');
   assert.equal(fromNumber('2sus4', 'C'), 'Dsus4');
   assert.equal(fromNumber('1maj7', 'C'), 'Cmaj7');
