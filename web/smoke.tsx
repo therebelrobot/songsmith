@@ -29,6 +29,8 @@ function emptyGrid(song: Song, chords: PlacedChord[] = []): Grid {
 /** Every prop a bare <Sheet> needs beyond song/grid/activeLineId/livePosition/playheadBar, so each render call below only states what it's testing. */
 const sheetHandlers = {
   diatonicSuggestions: [] as readonly string[],
+  pendingFocus: null,
+  onFocusHandled: noop,
   onSelectLine: noop,
   onEditLine: noop,
   onAddLine: noop,

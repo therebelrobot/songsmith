@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Grid, SyllableAnchor, Song } from '../api';
 import { offsetOf } from '../api';
+import type { PendingFocus } from '../focus';
 import { LineRow } from './LineRow';
 import { BarRuler } from './BarRuler';
 
@@ -12,6 +13,9 @@ interface Props {
   livePosition: readonly [number, number] | null;
   playheadBar: number | null;
   diatonicSuggestions: readonly string[];
+  /** Set by a useSong mutation to say what should self-focus once it exists in the DOM; cleared once it does. */
+  pendingFocus: PendingFocus;
+  onFocusHandled: () => void;
   onSelectLine: (id: number) => void;
   onEditLine: (id: number, text: string) => void;
   onAddLine: (sectionId: number, afterId?: number) => void;
@@ -38,6 +42,8 @@ export function Sheet({
   livePosition,
   playheadBar,
   diatonicSuggestions,
+  pendingFocus,
+  onFocusHandled,
   onSelectLine,
   onEditLine,
   onAddLine,
@@ -74,11 +80,11 @@ export function Sheet({
         return (
           <section key={section.id} className="sec">
             <header className="sec-head">
-              <input
-                className="sec-name"
-                value={section.name}
-                aria-label="Section name"
-                onChange={(e) => onRenameSection(section.id, e.target.value)}
+              <SectionNameInput
+                name={section.name}
+                shouldFocus={pendingFocus?.kind === 'section' && pendingFocus.id === section.id}
+                onFocused={onFocusHandled}
+                onChange={(name) => onRenameSection(section.id, name)}
               />
               <label className="sec-bars">
                 <span>bars</span>
@@ -168,6 +174,8 @@ export function Sheet({
                       chords={lineChords}
                       chordDisplay={song.chord_display}
                       songKey={song.song_key}
+                      shouldFocus={pendingFocus?.kind === 'line' && pendingFocus.id === line.id}
+                      onFocused={onFocusHandled}
                       onFocus={() => onSelectLine(line.id)}
                       onChange={(text) => onEditLine(line.id, text)}
                       onSplitBelow={() => onAddLine(section.id, line.id)}
@@ -202,6 +210,40 @@ export function Sheet({
         Add section
       </button>
     </div>
+  );
+}
+
+/** The section name field, self-focusing (no caret placement needed — it's short and usually replaced wholesale) when `shouldFocus` flips true after "Add section". */
+function SectionNameInput({
+  name,
+  shouldFocus,
+  onFocused,
+  onChange,
+}: {
+  name: string;
+  shouldFocus: boolean;
+  onFocused: () => void;
+  onChange: (name: string) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!shouldFocus) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+    onFocused();
+  }, [shouldFocus, onFocused]);
+
+  return (
+    <input
+      ref={ref}
+      className="sec-name"
+      value={name}
+      aria-label="Section name"
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }
 

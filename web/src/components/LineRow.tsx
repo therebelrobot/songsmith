@@ -11,6 +11,9 @@ interface Props {
   chords: PlacedChord[];
   chordDisplay: string;
   songKey: string | null;
+  /** True for exactly one render after a mutation targets this line; the line focuses itself, caret at the end, then calls onFocused. */
+  shouldFocus: boolean;
+  onFocused: () => void;
   onFocus: () => void;
   onChange: (text: string) => void;
   onSplitBelow: () => void;
@@ -30,6 +33,8 @@ export function LineRow({
   chords,
   chordDisplay,
   songKey,
+  shouldFocus,
+  onFocused,
   onFocus,
   onChange,
   onSplitBelow,
@@ -56,6 +61,19 @@ export function LineRow({
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, [draft]);
+
+  // Fires post-render, once the textarea actually exists in the DOM — a
+  // ref.focus() called right after the mutation's await would run before
+  // that, since reload()'s re-render hasn't happened yet.
+  useEffect(() => {
+    if (!shouldFocus) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+    onFocused();
+  }, [shouldFocus, onFocused]);
 
   const estimated = line.syllables.some((w) => !w.known);
   const pinned = gridLine ? new Set(gridLine.syllables.filter((s) => s.pinned).map((s) => s.index)) : undefined;

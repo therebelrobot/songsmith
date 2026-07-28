@@ -38,8 +38,11 @@ export default function App() {
     needsToken,
     setNeedsToken,
     saving,
+    pendingFocus,
+    clearPendingFocus,
     refreshList,
     reload,
+    openSong,
     createSong,
     patchTitle,
     patchKey,
@@ -191,6 +194,8 @@ export default function App() {
               livePosition={livePosition}
               playheadBar={playheadBar}
               diatonicSuggestions={diatonicSuggestions}
+              pendingFocus={pendingFocus}
+              onFocusHandled={clearPendingFocus}
               onSelectLine={setActiveLineId}
               onEditLine={editLine}
               onAddLine={onAddLine}
