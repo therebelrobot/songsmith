@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { PlacedChord } from '../api';
 import { isValidChordSymbol } from '../chords';
-import { displaySymbol } from '../nashville';
+import { displaySymbol, fromNumber } from '../nashville';
 
 interface Props {
   /** absolute bar number of this section's first bar, across the whole song */
@@ -53,12 +53,23 @@ export function BarRuler({
     return chords.find((c) => c.bar === bar && Math.round(c.beat) === beat);
   }
 
+  /** A letter name always works; a number chart symbol works too, whichever mode is showing. */
+  function resolveEntry(draft: string): string | null {
+    const trimmed = draft.trim();
+    if (isValidChordSymbol(trimmed)) return trimmed;
+    if (songKey) {
+      const fromChart = fromNumber(trimmed, songKey);
+      if (fromChart) return fromChart;
+    }
+    return null;
+  }
+
   function commit(symbol: string) {
     if (!editing) return;
-    const trimmed = symbol.trim();
-    if (!isValidChordSymbol(trimmed)) return;
-    if (editing.chordId !== null) onRenameChord(editing.chordId, trimmed);
-    else onAddChord(editing.bar, editing.beat, trimmed);
+    const resolved = resolveEntry(symbol);
+    if (!resolved) return;
+    if (editing.chordId !== null) onRenameChord(editing.chordId, resolved);
+    else onAddChord(editing.bar, editing.beat, resolved);
     setEditing(null);
   }
 
@@ -89,6 +100,7 @@ export function BarRuler({
                     key={beat}
                     initial={chord ? displaySymbol(chord.symbol, chordDisplay, songKey) : ''}
                     suggestions={diatonicSuggestions}
+                    songKey={songKey}
                     onCommit={commit}
                     onCancel={() => setEditing(null)}
                   />
@@ -161,16 +173,21 @@ export function BarRuler({
 function ChordSlotEditor({
   initial,
   suggestions,
+  songKey,
   onCommit,
   onCancel,
 }: {
   initial: string;
   suggestions: readonly string[];
+  songKey: string | null;
   onCommit: (symbol: string) => void;
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
-  const invalid = draft.trim().length > 0 && !isValidChordSymbol(draft);
+  const trimmed = draft.trim();
+  // A letter name always works; a number chart symbol works too, whichever
+  // display mode is active — entry format is never gated on it.
+  const invalid = trimmed.length > 0 && !isValidChordSymbol(trimmed) && !(songKey && fromNumber(trimmed, songKey));
 
   return (
     <div className="chord-editor">
