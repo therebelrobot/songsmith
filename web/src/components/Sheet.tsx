@@ -21,6 +21,8 @@ interface Props {
   onAddLine: (sectionId: number, afterId?: number) => void;
   onDeleteLine: (id: number) => void;
   onMoveLine: (id: number, beforeId: number) => void;
+  onMoveLineUp: (id: number) => void;
+  onMoveLineDown: (id: number) => void;
   onRenameSection: (id: number, name: string) => void;
   onSectionBarCount: (id: number, barCount: number | null) => void;
   onAddSection: (afterId?: number) => void;
@@ -49,6 +51,8 @@ export function Sheet({
   onAddLine,
   onDeleteLine,
   onMoveLine,
+  onMoveLineUp,
+  onMoveLineDown,
   onRenameSection,
   onSectionBarCount,
   onAddSection,
@@ -151,6 +155,7 @@ export function Sheet({
                   draggedChord.current = null;
                   if (id !== null) onMoveChord(id, bar, beat);
                 }}
+                onMoveChord={onMoveChord}
               />
             ) : (
               <p className="ruler-empty">
@@ -172,7 +177,7 @@ export function Sheet({
               </p>
             ) : (
               <ol className="lines">
-                {section.lines.map((line) => {
+                {section.lines.map((line, i) => {
                   const gridLine = grid?.lines.find((l) => l.line_id === line.id);
                   const liveIndex =
                     livePosition && livePosition[0] === line.id ? livePosition[1] : null;
@@ -206,6 +211,10 @@ export function Sheet({
                       }
                       onToggleAnchor={(index) => onToggleAnchor(line.id, index)}
                       onClearTiming={() => onClearTiming(line.id)}
+                      canMoveUp={i > 0}
+                      canMoveDown={i < section.lines.length - 1}
+                      onMoveUp={() => onMoveLineUp(line.id)}
+                      onMoveDown={() => onMoveLineDown(line.id)}
                     />
                   );
                 })}

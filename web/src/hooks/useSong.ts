@@ -324,6 +324,35 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     });
   }
 
+  /** Explicit reorder controls: the touch path, since HTML5 drag never fires on mobile — also better for keyboard/screen-reader access on desktop. Intra-section only, same as drag. */
+  function onMoveLineUp(id: number) {
+    if (!song) return;
+    const section = song.sections.find((s) => s.lines.some((l) => l.id === id));
+    if (!section) return;
+    const idx = section.lines.findIndex((l) => l.id === id);
+    if (idx <= 0) return;
+    const beforeId = section.lines[idx - 1]?.id;
+    if (beforeId === undefined) return;
+    void guard(async () => {
+      await api.patchLine(id, { before_id: beforeId });
+      await reload(song.id);
+    });
+  }
+
+  function onMoveLineDown(id: number) {
+    if (!song) return;
+    const section = song.sections.find((s) => s.lines.some((l) => l.id === id));
+    if (!section) return;
+    const idx = section.lines.findIndex((l) => l.id === id);
+    if (idx === -1 || idx >= section.lines.length - 1) return;
+    const afterId = section.lines[idx + 1]?.id;
+    if (afterId === undefined) return;
+    void guard(async () => {
+      await api.patchLine(id, { after_id: afterId });
+      await reload(song.id);
+    });
+  }
+
   function onRenameSection(id: number, name: string) {
     if (!song) return;
     setSong({
@@ -416,6 +445,8 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     onAddLine,
     onDeleteLine,
     onMoveLine,
+    onMoveLineUp,
+    onMoveLineDown,
     onRenameSection,
     onAddSection,
     onDeleteSection,

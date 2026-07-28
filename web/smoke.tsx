@@ -36,6 +36,8 @@ const sheetHandlers = {
   onAddLine: noop,
   onDeleteLine: noop,
   onMoveLine: noop,
+  onMoveLineUp: noop,
+  onMoveLineDown: noop,
   onRenameSection: noop,
   onSectionBarCount: noop,
   onAddSection: noop,

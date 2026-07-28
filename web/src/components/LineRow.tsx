@@ -23,6 +23,11 @@ interface Props {
   onToggleAnchor: (index: number) => void;
   onSetBarBeat: (startBar: number, startBeat: number) => void;
   onClearTiming: () => void;
+  /** Explicit reorder controls — the only way to reorder on touch, since HTML5 drag never fires there; also a better-targeted path than drag on desktop. */
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }
 
 export function LineRow({
@@ -44,6 +49,10 @@ export function LineRow({
   onToggleAnchor,
   onSetBarBeat,
   onClearTiming,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: Props) {
   const [draft, setDraft] = useState(line.text);
   const [over, setOver] = useState(false);
@@ -196,6 +205,27 @@ export function LineRow({
           {line.alternates.length}
         </span>
       ) : null}
+
+      <div className="reorder">
+        <button
+          type="button"
+          className="reorder-btn"
+          aria-label="Move line up"
+          disabled={!canMoveUp}
+          onClick={onMoveUp}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="reorder-btn"
+          aria-label="Move line down"
+          disabled={!canMoveDown}
+          onClick={onMoveDown}
+        >
+          ▼
+        </button>
+      </div>
     </li>
   );
 }

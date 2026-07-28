@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { PlacedChord } from '../api';
 import { isValidChordSymbol } from '../chords';
 import { displaySymbol, fromNumber } from '../nashville';
@@ -23,6 +23,8 @@ interface Props {
   onDeleteChord: (id: number) => void;
   onDragStartChord: (id: number) => void;
   onDropChordSlot: (bar: number, beat: number) => void;
+  /** Explicit move-earlier/move-later controls in the chord editor popover — the touch path, since drag never fires there. */
+  onMoveChord: (id: number, bar: number, beat: number) => void;
 }
 
 /**
@@ -45,12 +47,27 @@ export function BarRuler({
   onDeleteChord,
   onDragStartChord,
   onDropChordSlot,
+  onMoveChord,
 }: Props) {
   const bars = Array.from({ length: barCount }, (_, i) => startBar + i);
   const [editing, setEditing] = useState<{ bar: number; beat: number; chordId: number | null } | null>(null);
 
   function chordAt(bar: number, beat: number): PlacedChord | undefined {
     return chords.find((c) => c.bar === bar && Math.round(c.beat) === beat);
+  }
+
+  /** Adjacent beat slot, wrapping into the previous/next bar at a bar boundary. Chords key off absolute (bar, beat), not the section, so this can cross a section boundary — that's fine. */
+  function movePrev(id: number, bar: number, beat: number) {
+    const target = beat > 1 ? { bar, beat: beat - 1 } : bar > 1 ? { bar: bar - 1, beat: meterNum } : null;
+    if (!target) return;
+    onMoveChord(id, target.bar, target.beat);
+    setEditing(null);
+  }
+
+  function moveNext(id: number, bar: number, beat: number) {
+    const target = beat < meterNum ? { bar, beat: beat + 1 } : { bar: bar + 1, beat: 1 };
+    onMoveChord(id, target.bar, target.beat);
+    setEditing(null);
   }
 
   /** A letter name always works; a number chart symbol works too, whichever mode is showing. */
@@ -80,6 +97,10 @@ export function BarRuler({
           key={bar}
           role="listitem"
           className={bar === playheadBar ? 'ruler-bar ruler-bar-live' : 'ruler-bar'}
+          // Read by the mobile chord-slot sizing rule (see styles.css) to size
+          // each bar for `meterNum` full 44px touch targets rather than
+          // compressing them to fit.
+          style={{ '--beats': meterNum } as CSSProperties}
           onDragOver={onDropBar ? (e) => e.preventDefault() : undefined}
           onDrop={onDropBar ? () => onDropBar(bar) : undefined}
         >
@@ -95,6 +116,7 @@ export function BarRuler({
               const isEditing = editing?.bar === bar && editing?.beat === beat;
 
               if (isEditing) {
+                const chordId = editing.chordId;
                 return (
                   <ChordSlotEditor
                     key={beat}
@@ -103,6 +125,19 @@ export function BarRuler({
                     songKey={songKey}
                     onCommit={commit}
                     onCancel={() => setEditing(null)}
+                    move={
+                      chordId !== null
+                        ? { onPrev: () => movePrev(chordId, bar, beat), onNext: () => moveNext(chordId, bar, beat) }
+                        : undefined
+                    }
+                    onDelete={
+                      chordId !== null
+                        ? () => {
+                            onDeleteChord(chordId);
+                            setEditing(null);
+                          }
+                        : undefined
+                    }
                   />
                 );
               }
@@ -176,21 +211,40 @@ function ChordSlotEditor({
   songKey,
   onCommit,
   onCancel,
+  move,
+  onDelete,
 }: {
   initial: string;
   suggestions: readonly string[];
   songKey: string | null;
   onCommit: (symbol: string) => void;
   onCancel: () => void;
+  /** Present only when editing an existing chord (not while adding a new one) — moves it to the adjacent beat slot. */
+  move?: { onPrev: () => void; onNext: () => void };
+  /** The chip's own delete "×" only reveals on hover, which doesn't exist on touch — this is the reachable path there (and everywhere else). */
+  onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const trimmed = draft.trim();
   // A letter name always works; a number chart symbol works too, whichever
   // display mode is active — entry format is never gated on it.
   const invalid = trimmed.length > 0 && !isValidChordSymbol(trimmed) && !(songKey && fromNumber(trimmed, songKey));
 
+  // The bar ruler scrolls horizontally (`.ruler { overflow-x: auto }`), which
+  // per the CSS overflow spec forces its vertical overflow to clip too —
+  // position: absolute would get cut off at the ruler's own bottom edge.
+  // Fixed positioning, anchored from a rect read once at mount, escapes that.
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPopoverPos({ top: rect.bottom + 2, left: rect.left });
+  }, []);
+
   return (
-    <div className="chord-editor">
+    <div className="chord-editor" ref={wrapRef}>
       <input
         className={invalid ? 'chord-input chord-input-invalid' : 'chord-input'}
         value={draft}
@@ -211,9 +265,48 @@ function ChordSlotEditor({
           }
         }}
       />
-      {invalid || suggestions.length > 0 ? (
-        <div className="chord-editor-popover">
+      {(invalid || suggestions.length > 0 || move || onDelete) && popoverPos ? (
+        <div className="chord-editor-popover" style={{ top: popoverPos.top, left: popoverPos.left }}>
           {invalid ? <span className="chord-error">not a chord tonal recognizes</span> : null}
+          {move ? (
+            <div className="chord-move-controls">
+              <button
+                type="button"
+                className="ghost move-btn"
+                // mousedown fires before the input's blur, so the click survives
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  move.onPrev();
+                }}
+              >
+                ◀ earlier
+              </button>
+              <button
+                type="button"
+                className="ghost move-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  move.onNext();
+                }}
+              >
+                later ▶
+              </button>
+            </div>
+          ) : null}
+          {onDelete ? (
+            <div className="chord-move-controls">
+              <button
+                type="button"
+                className="ghost danger move-btn"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onDelete();
+                }}
+              >
+                Delete chord
+              </button>
+            </div>
+          ) : null}
           {suggestions.length > 0 ? (
             <div className="chord-suggestions">
               {suggestions.map((s) => (

@@ -431,16 +431,25 @@ button, input, textarea { font: inherit; color: inherit; }
 .chord-input-invalid { border-color: var(--warn); color: var(--warn); }
 
 .chord-editor-popover {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 1;
+  /* Fixed, not absolute: .ruler's horizontal scroll (overflow-x: auto) forces
+     its vertical overflow to clip too, so an absolutely-positioned popover
+     would be cut off at the ruler's bottom edge. top/left are computed from
+     the input's own rect in BarRuler.tsx, once, at mount. Since it now
+     floats free of the layout instead of pushing the ruler row taller, it
+     needs its own opaque backing so it doesn't blend into whatever's
+     underneath. */
+  position: fixed;
+  z-index: 18;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 2px;
   width: max-content;
   max-width: 220px;
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
 .chord-error {
@@ -452,6 +461,9 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 2px 6px;
   font-size: 10px;
 }
+
+.chord-move-controls { display: flex; gap: 4px; }
+.move-btn { flex: 1; font-size: 10px; padding: 3px 6px; white-space: nowrap; }
 
 .chord-suggestions {
   display: flex;
@@ -479,7 +491,7 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .line {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) 20px 18px;
+  grid-template-columns: 74px minmax(0, 1fr) 20px 18px 20px;
   align-items: start;
   gap: 10px;
   padding: 3px 6px;
@@ -489,6 +501,22 @@ button, input, textarea { font: inherit; color: inherit; }
 .line:hover { background: var(--raised); }
 .line-active { background: var(--raised); border-left-color: var(--pulse); }
 .line-over { box-shadow: inset 0 2px 0 var(--pulse); }
+
+/* ---------- reorder (explicit move controls — the touch path, since drag never fires there; also keyboard/screen-reader friendly on desktop) ---------- */
+
+.reorder { display: flex; flex-direction: column; gap: 2px; }
+.reorder-btn {
+  background: transparent;
+  border: 1px solid var(--edge);
+  color: var(--dim);
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 3px;
+  cursor: pointer;
+}
+.reorder-btn:hover { color: var(--bone); border-color: var(--faint); }
+.reorder-btn:disabled { opacity: 0.3; cursor: default; }
 
 .line-input {
   width: 100%;
