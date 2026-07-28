@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --force",
     "test": "tsx --test src/*.test.ts",
+    "test:integration": "tsx --test integration.test.ts",
     "smoke": "esbuild smoke.tsx --bundle --platform=node --format=cjs --outfile=node_modules/.smoke.cjs --jsx=automatic --log-level=error && node node_modules/.smoke.cjs"
   },
   "dependencies": {
