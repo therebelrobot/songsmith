@@ -7,6 +7,7 @@ import { TempoControl } from './components/TempoControl';
 import { Transport } from './components/Transport';
 import { TransposeControl } from './components/TransposeControl';
 import { ExportControls } from './components/ExportControls';
+import { ChordDisplayToggle } from './components/ChordDisplayToggle';
 import { PrintSheet } from './components/PrintSheet';
 import { useSong } from './hooks/useSong';
 
@@ -150,23 +151,11 @@ export default function App() {
                 />
                 voice leading
               </label>
-              <label
-                className="voice-leading-toggle"
-                title={
-                  song.song_key
-                    ? 'Show chord numbers (Nashville Number System) instead of letter names'
-                    : 'Set a key to show chord numbers'
-                }
-              >
-                <input
-                  type="checkbox"
-                  checked={song.chord_display === 'numbers'}
-                  disabled={!song.song_key}
-                  aria-label="Chord numbers"
-                  onChange={(e) => patchChordDisplay(e.target.checked ? 'numbers' : 'names')}
-                />
-                numbers
-              </label>
+              <ChordDisplayToggle
+                chordDisplay={song.chord_display}
+                songKey={song.song_key}
+                onChange={patchChordDisplay}
+              />
               <span className={saving ? 'save-state on' : 'save-state'}>
                 {saving ? 'saving' : 'saved'}
               </span>
