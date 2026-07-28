@@ -69,3 +69,17 @@ export function midpoint(before: number | null, after: number | null): number {
   if (after === null) return before + 1000;
   return (before + after) / 2;
 }
+
+export function songIdOfSection(sectionId: number): number | null {
+  const r = db.prepare('SELECT song_id FROM sections WHERE id = ?').get(sectionId) as
+    | { song_id: number }
+    | undefined;
+  return r?.song_id ?? null;
+}
+
+export function songIdOfLine(lineId: number): number | null {
+  const r = db
+    .prepare('SELECT s.song_id AS song_id FROM lines l JOIN sections s ON s.id = l.section_id WHERE l.id = ?')
+    .get(lineId) as { song_id: number } | undefined;
+  return r?.song_id ?? null;
+}
