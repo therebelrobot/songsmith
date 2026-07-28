@@ -19,8 +19,6 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
-# schema.sql is data, not TypeScript, so tsc does not copy it.
-RUN cp src/schema.sql dist/schema.sql
 
 # --- runtime ------------------------------------------------------------------
 FROM node:22-bookworm-slim AS runtime
@@ -31,6 +29,11 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=web /build/public ./public
 COPY data/cmudict-0.7b.txt data/CMUDICT-LICENSE.txt ./data/
+# schema.sql and migrations/ are data src/db.ts reads at startup (resolved
+# from process.cwd(), never import.meta.url — see src/db.ts) — copied
+# straight from source rather than duplicated into dist/.
+COPY --from=build /app/src/schema.sql ./src/schema.sql
+COPY --from=build /app/src/migrations ./src/migrations
 RUN chown -R node:node /app/data
 USER node
 EXPOSE 5180

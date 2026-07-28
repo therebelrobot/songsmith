@@ -52,10 +52,10 @@ export default async function songRoutes(app: FastifyInstance) {
     const b = SongCreate.parse(req.body ?? {});
     const r = db
       .prepare(
-        `INSERT INTO songs (title, song_key, tempo_bpm, meter_num, meter_den, notes)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO songs (title, song_key, tempo_bpm, meter_num, meter_den, notes, voice_leading)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(b.title, b.song_key ?? null, b.tempo_bpm ?? null, b.meter_num, b.meter_den, b.notes);
+      .run(b.title, b.song_key ?? null, b.tempo_bpm ?? null, b.meter_num, b.meter_den, b.notes, b.voice_leading ? 1 : 0);
     const id = Number(r.lastInsertRowid);
     // A song with no sections is unusable in the UI, so seed one.
     db.prepare('INSERT INTO sections (song_id, name, position) VALUES (?, ?, ?)').run(
@@ -80,7 +80,8 @@ export default async function songRoutes(app: FastifyInstance) {
     const fields = Object.entries(b).filter(([, v]) => v !== undefined);
     if (fields.length > 0) {
       const set = fields.map(([k]) => `${k} = ?`).join(', ');
-      const values = fields.map(([, v]) => v as string | number | null);
+      // SQLite has no boolean bind type — node:sqlite rejects a raw JS boolean.
+      const values = fields.map(([k, v]) => (k === 'voice_leading' ? (v ? 1 : 0) : (v as string | number | null)));
       const info = db
         .prepare(`UPDATE songs SET ${set}, updated_at = datetime('now') WHERE id = ?`)
         .run(...values, id);

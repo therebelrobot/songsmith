@@ -9,6 +9,7 @@ export const SongCreate = z.object({
   meter_num: z.number().int().min(1).max(32).default(4),
   meter_den: z.number().int().refine((n) => [1, 2, 4, 8, 16].includes(n)).default(4),
   notes: z.string().max(20000).default(''),
+  voice_leading: z.boolean().default(true),
 });
 
 export const SongPatch = z
@@ -19,6 +20,7 @@ export const SongPatch = z
     meter_num: z.number().int().min(1).max(32),
     meter_den: z.number().int().refine((n) => [1, 2, 4, 8, 16].includes(n)),
     notes: z.string().max(20000),
+    voice_leading: z.boolean(),
   })
   .partial();
 
@@ -76,6 +78,7 @@ export interface SongRow {
   meter_num: number;
   meter_den: number;
   notes: string;
+  voice_leading: number;
   created_at: string;
   updated_at: string;
 }
