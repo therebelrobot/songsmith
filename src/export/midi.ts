@@ -4,7 +4,7 @@
  * events. Pure function: takes the chord track (each chord already carrying
  * its resolved MIDI notes) and returns bytes.
  *
- * Notes come from src/timing/voiceLeading.ts, the same call
+ * Notes come from src/music/voiceLeading.ts, the same call
  * GET /api/songs/:id/grid makes, so the exported file always sounds like
  * what the app plays — there is exactly one voicing implementation, not two
  * to keep in sync (see the phase 5 handoff).
@@ -19,7 +19,7 @@ export interface MidiChordInput {
   bar: number;
   beat: number;
   duration_beats: number;
-  /** Resolved MIDI note numbers for this chord — see src/timing/voiceLeading.ts. */
+  /** Resolved MIDI note numbers for this chord — see src/music/voiceLeading.ts. */
   notes: number[];
 }
 
@@ -64,7 +64,7 @@ interface NoteEvent {
 /**
  * Build the Type-0 MIDI bytes for the chord track. Bar/beat are converted to
  * ticks via the song's own meter (a "beat" is whatever note value meter_den
- * names, same convention as src/timing/resolve.ts), not via tempo — tempo
+ * names, same convention as src/music/resolve.ts), not via tempo — tempo
  * only sets the playback-speed meta event.
  */
 export function buildMidi(input: MidiSongInput): Uint8Array {

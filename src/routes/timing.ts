@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { db, touchSong, songIdOfLine } from '../db';
-import { buildGrid } from '../timing/grid';
+import { buildGrid } from '../music/grid';
 import { IdParam, LineTimingBody, type LineTimingRow } from '../types';
 
 export default async function timingRoutes(app: FastifyInstance) {

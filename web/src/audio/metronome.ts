@@ -10,7 +10,7 @@ const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 const SIXTEENTHS_PER_BEAT = 4;
 
-/** Equal-temperament MIDI-to-Hz, A4 (69) = 440Hz — a unit conversion, not a voicing decision; the notes themselves come from the server (src/timing/voiceLeading.ts). */
+/** Equal-temperament MIDI-to-Hz, A4 (69) = 440Hz — a unit conversion, not a voicing decision; the notes themselves come from the server (src/music/voiceLeading.ts). */
 function midiToFrequency(note: number): number {
   return 440 * 2 ** ((note - 69) / 12);
 }

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeLine, type WordProsody } from '../prosody/syllables';
-import { resolveLineTiming } from '../timing/resolve';
-import { placeChords, type ChordInput } from '../timing/leadsheet';
+import { resolveLineTiming } from '../music/resolve';
+import { placeChords, type ChordInput } from '../music/leadsheet';
 import {
   serializeChordPro,
   parseChordPro,

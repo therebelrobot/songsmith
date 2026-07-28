@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
-import { buildGrid } from '../timing/grid';
+import { buildGrid } from '../music/grid';
 import { serializeChordPro, parseChordPro, planChordProImport, type ChordProInput } from '../export/chordpro';
 import { buildMidi } from '../export/midi';
 import { IdParam, ChordProImportBody, type SongRow, type SectionRow } from '../types';

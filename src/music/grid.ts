@@ -13,7 +13,7 @@ interface GridRow {
 }
 
 export interface VoicedChord extends PlacedChord {
-  /** MIDI note numbers, per src/timing/voiceLeading.ts — the same array src/export/midi.ts uses for this chord. */
+  /** MIDI note numbers, per src/music/voiceLeading.ts — the same array src/export/midi.ts uses for this chord. */
   voicing: number[];
 }
 
