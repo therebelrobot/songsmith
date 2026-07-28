@@ -73,6 +73,11 @@ export function Sheet({
 
   return (
     <div className="sheet">
+      <p className="shortcut-hint">
+        <kbd>Enter</kbd> new line · <kbd>Shift</kbd>+<kbd>Enter</kbd> line break · <kbd>Backspace</kbd> in an empty
+        line deletes it
+      </p>
+
       {song.sections.map((section) => {
         const sectionStartBar = barOffset + 1;
         barOffset += section.bar_count ?? 0;

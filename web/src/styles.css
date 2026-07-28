@@ -245,6 +245,27 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 4px 3px;
 }
 
+/* ---------- shortcut hint ---------- */
+
+.shortcut-hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  margin: 0 0 16px;
+}
+.shortcut-hint kbd {
+  font-family: var(--mono);
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+/* Enter/Shift+Enter/Backspace don't apply with a virtual keyboard. */
+@media (hover: none) and (pointer: coarse) {
+  .shortcut-hint { display: none; }
+}
+
 /* ---------- sheet ---------- */
 
 .sheet { max-width: 760px; }

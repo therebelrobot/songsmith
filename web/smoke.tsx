@@ -77,6 +77,11 @@ assert('active line shows segmentation', sheet.includes('segmentation'));
 assert('syllable counts in gutter', /class="count"/.test(sheet));
 assert('timing controls render for the active line', sheet.includes('aria-label="Start bar"') && sheet.includes('aria-label="Start beat"'));
 assert('unplaced line hints at how to place it', sheet.includes('drag onto the bar ruler'));
+assert('shortcut hint is present', sheet.includes('Shift') && sheet.includes('Backspace') && sheet.includes('shortcut-hint'));
+assert(
+  'move-up/move-down controls render as the touch path for reordering',
+  sheet.includes('aria-label="Move line up"') && sheet.includes('aria-label="Move line down"'),
+);
 
 // --- bar ruler ---
 
