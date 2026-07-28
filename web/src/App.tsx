@@ -346,6 +346,22 @@ export default function App() {
                   });
                 }}
               />
+              <label className="voice-leading-toggle" title="Blocked root-position chords when off">
+                <input
+                  type="checkbox"
+                  checked={!!song.voice_leading}
+                  aria-label="Voice leading"
+                  onChange={(e) => {
+                    const voice_leading = e.target.checked;
+                    setSong({ ...song, voice_leading: voice_leading ? 1 : 0 });
+                    void guard(async () => {
+                      await api.patchSong(song.id, { voice_leading });
+                      await reload(song.id);
+                    });
+                  }}
+                />
+                voice leading
+              </label>
               <span className={saving ? 'save-state on' : 'save-state'}>
                 {saving ? 'saving' : 'saved'}
               </span>

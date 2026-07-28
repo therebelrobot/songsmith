@@ -10,12 +10,17 @@ const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
 const SIXTEENTHS_PER_BEAT = 4;
 
-/** A chord voiced into playable tones (src/chords.ts's voiceChord), on the same bar/beat grid as the metronome click. */
+/** Equal-temperament MIDI-to-Hz, A4 (69) = 440Hz — a unit conversion, not a voicing decision; the notes themselves come from the server (src/timing/voiceLeading.ts). */
+function midiToFrequency(note: number): number {
+  return 440 * 2 ** ((note - 69) / 12);
+}
+
+/** A chord's resolved MIDI notes, on the same bar/beat grid as the metronome click. */
 export interface ChordEvent {
   bar: number;
   beat: number;
   durationBeats: number;
-  frequencies: number[];
+  notes: number[];
 }
 
 export interface MetronomeOptions {
@@ -111,9 +116,9 @@ export class Metronome {
   /** Polyphonic voice: one oscillator per tone, summed through a shared gain envelope. */
   private playChord(chord: ChordEvent, time: number): void {
     const ctx = this.ctx;
-    if (!ctx || chord.frequencies.length === 0) return;
+    if (!ctx || chord.notes.length === 0) return;
     const seconds = (60 / this.opts.bpm) * chord.durationBeats;
-    const peak = 0.6 / chord.frequencies.length;
+    const peak = 0.6 / chord.notes.length;
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, time);
@@ -121,10 +126,10 @@ export class Metronome {
     gain.gain.exponentialRampToValueAtTime(0.0001, time + seconds);
     gain.connect(ctx.destination);
 
-    for (const frequency of chord.frequencies) {
+    for (const note of chord.notes) {
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
-      osc.frequency.value = frequency;
+      osc.frequency.value = midiToFrequency(note);
       osc.connect(gain);
       osc.start(time);
       osc.stop(time + seconds + 0.05);

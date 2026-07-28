@@ -49,22 +49,3 @@ export function transposeChordSymbol(symbol: string, semitones: number): string 
   const newRest = rest.replace(BASS_RE, (_match, bass: string) => `/${Note.transpose(bass, interval)}`);
   return newRoot + newRest;
 }
-
-export interface VoicedTone {
-  /** Hz, from tonal's Note.freq. */
-  frequency: number;
-}
-
-/**
- * Simplified voicing (phase 3, deliberately no inversions or voice leading —
- * that's phase 5): root in octave 3, every remaining chord tone in octave 4.
- * Returns [] for a symbol tonal can't parse.
- */
-export function voiceChord(symbol: string): VoicedTone[] {
-  const chord = Chord.get(symbol.trim());
-  if (chord.empty || chord.notes.length === 0) return [];
-  return chord.notes
-    .map((pitchClass, i) => Note.freq(`${pitchClass}${i === 0 ? 3 : 4}`))
-    .filter((f): f is number => typeof f === 'number' && f > 0)
-    .map((frequency) => ({ frequency }));
-}

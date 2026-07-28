@@ -39,6 +39,8 @@ export interface Song {
   meter_num: number;
   meter_den: number;
   notes: string;
+  /** 0 or 1, straight from the sqlite column — falls back to root-position-only chords when 0. */
+  voice_leading: number;
   updated_at: string;
   sections: Section[];
 }
@@ -104,12 +106,15 @@ export interface Chord {
 export interface PlacedChord extends Chord {
   line_id: number | null;
   syllable_index: number | null;
+  /** MIDI note numbers, resolved server-side by src/timing/voiceLeading.ts — play these, don't recompute a voicing. */
+  voicing: number[];
 }
 
 export interface Grid {
   meter_num: number;
   meter_den: number;
   tempo_bpm: number | null;
+  voice_leading: boolean;
   lines: GridLine[];
   chords: PlacedChord[];
 }

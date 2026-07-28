@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Metronome } from '../audio/metronome';
 import type { PlacedChord, Song } from '../api';
-import { voiceChord } from '../chords';
 
 interface Props {
   song: Song;
@@ -25,9 +24,9 @@ export function Transport({ song, chords, onTick, onStop }: Props) {
         bar: c.bar,
         beat: c.beat,
         durationBeats: c.duration_beats,
-        frequencies: voiceChord(c.symbol).map((v) => v.frequency),
+        notes: c.voicing,
       }))
-      .filter((c) => c.frequencies.length > 0);
+      .filter((c) => c.notes.length > 0);
     const m = new Metronome({
       bpm: song.tempo_bpm,
       beatsPerBar: song.meter_num,

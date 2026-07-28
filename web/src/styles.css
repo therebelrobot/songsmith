@@ -186,6 +186,17 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 .save-state.on { color: var(--pulse); }
 
+.voice-leading-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  cursor: pointer;
+}
+.voice-leading-toggle input { accent-color: var(--pulse); cursor: pointer; }
+
 /* ---------- tempo + transport ---------- */
 
 .tempo, .transport {
