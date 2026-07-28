@@ -326,6 +326,16 @@ button, input, textarea { font: inherit; color: inherit; }
 .ruler-beat { width: 3px; height: 3px; border-radius: 50%; background: var(--edge); }
 .ruler-bar-live .ruler-beat { background: var(--pulse); }
 
+.ruler-empty {
+  background: var(--raised);
+  border: 1px dashed var(--edge);
+  border-radius: 4px;
+  color: var(--dim);
+  font-size: 13px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+
 /* ---------- chord track (on the bar ruler) ---------- */
 
 .chord-track {

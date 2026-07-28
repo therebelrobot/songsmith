@@ -147,7 +147,15 @@ export function Sheet({
                   if (id !== null) onMoveChord(id, bar, beat);
                 }}
               />
-            ) : null}
+            ) : (
+              <p className="ruler-empty">
+                No bars set, so there's nowhere for chords to go yet.{' '}
+                <button className="link" onClick={() => onSectionBarCount(section.id, 8)}>
+                  Set 8 bars
+                </button>{' '}
+                to enable the chord track.
+              </p>
+            )}
 
             {section.lines.length === 0 ? (
               <p className="empty">

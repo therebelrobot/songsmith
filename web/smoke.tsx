@@ -100,9 +100,13 @@ assert('bar ruler numbers the bars from 1', barredSheet.includes('>1<') && barre
 assert('bar ruler highlights the live bar', barredSheet.includes('ruler-bar-live'));
 assert('bar ruler renders an empty chord slot per beat', barredSheet.includes('class="chord-slot"'));
 
+// Explicit bar_count: null rather than relying on the fixture song's own
+// section already being unbarred — new sections default to bar_count 8, so
+// nothing fetched from a live server is guaranteed to be null anymore.
+const unbarredSong: Song = { ...song, sections: [{ ...song.sections[0]!, bar_count: null }] };
 const unbarredSheet = renderToStaticMarkup(
   <Sheet
-    song={song}
+    song={unbarredSong}
     grid={emptyGrid(song)}
     activeLineId={null}
     livePosition={null}
@@ -111,6 +115,10 @@ const unbarredSheet = renderToStaticMarkup(
   />,
 );
 assert('no ruler when a section has no bar_count', !unbarredSheet.includes('class="ruler"'));
+assert(
+  'a section with no bar_count shows an affordance instead of nothing',
+  unbarredSheet.includes('ruler-empty') && unbarredSheet.includes('Set 8 bars'),
+);
 
 // --- syllable anchoring ---
 

@@ -66,11 +66,14 @@ export default async function songRoutes(app: FastifyInstance) {
         b.chord_display,
       );
     const id = Number(r.lastInsertRowid);
-    // A song with no sections is unusable in the UI, so seed one.
-    db.prepare('INSERT INTO sections (song_id, name, position) VALUES (?, ?, ?)').run(
+    // A song with no sections is unusable in the UI, so seed one. bar_count
+    // defaults to 8, same as SectionCreate, so the chord track is reachable
+    // immediately rather than needing an explicit bar count first.
+    db.prepare('INSERT INTO sections (song_id, name, position, bar_count) VALUES (?, ?, ?, ?)').run(
       id,
       'Verse 1',
       1000,
+      8,
     );
     reply.code(201);
     return loadTree(id);
