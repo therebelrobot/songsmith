@@ -163,6 +163,20 @@ cheap when the UI lands.
 
 ---
 
+### Export / import
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/songs/:id/export.chordpro` | `text/plain`, chords inline as `[Am]` before the syllable they land on; a chord with no syllable renders as its own chord-only line |
+| `POST` | `/api/import/chordpro` | `{ text }` — creates a **new** song, never overwrites an existing one; response includes `warnings` (e.g. no `{tempo}`/`{time}` found, defaulted to 4/4) |
+| `GET` | `/api/songs/:id/export.mid` | `audio/midi`, Type-0, chord track only, same simplified voicing as playback (root octave 3, other tones octave 4). A null tempo defaults to 120 and is flagged via the `x-songsmith-default-tempo` response header rather than failing |
+
+ChordPro is the round-trip format: export → import → export is byte-identical
+(see `src/export/chordpro.test.ts`). MIDI export and ChordPro serialization are
+both pure functions (`src/export/midi.ts`, `src/export/chordpro.ts`) fed by
+`buildGrid()` in `src/routes/timing.ts`, the same grid math the editor and the
+`GET .../grid` endpoint use — so export can't drift from what's on screen.
+
 ## Known behaviour, so it doesn't surprise you later
 
 **Syllable counts are careful-speech counts.** CMU has `EVERY` as three

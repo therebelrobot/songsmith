@@ -129,8 +129,25 @@ export const ChordPatch = z.object({
   replace: z.boolean().default(false),
 });
 
-export const TransposeBody = z.object({
-  semitones: z.number().int().min(-11).max(11),
+/**
+ * The client computes transposed symbols itself (with tonal, for correct
+ * enharmonic spelling — see the phase 4 handoff on the server's hand-rolled
+ * table getting "Am" up a semitone wrong as "A#m" instead of "Bbm") and this
+ * just writes the already-computed result atomically. One transposition
+ * implementation, not two.
+ */
+export const ChordSymbolWrite = z.object({
+  id: z.number().int().positive(),
+  symbol: z.string().min(1).max(24),
+});
+
+export const TransposeWriteBody = z.object({
+  song_key: z.string().max(16).optional(),
+  chords: z.array(ChordSymbolWrite).max(500).default([]),
+});
+
+export const ChordProImportBody = z.object({
+  text: z.string().min(1).max(200_000),
 });
 
 export interface ChordRow {

@@ -1,4 +1,4 @@
-import { Chord, Key, Note } from 'tonal';
+import { Chord, Interval, Key, Note } from 'tonal';
 
 /** A symbol is valid when tonal can resolve it to at least one pitch class. */
 export function isValidChordSymbol(symbol: string): boolean {
@@ -26,6 +26,28 @@ export function diatonicChordsForKey(songKey: string | null): readonly string[] 
   }
   const key = Key.majorKey(tonic);
   return key.triads;
+}
+
+const ROOT_RE = /^[A-G][#b]?/;
+const BASS_RE = /\/([A-G][#b]?)/;
+
+/**
+ * Transpose a leadsheet chord symbol ("Am7", "F#maj7", "C/E") or a bare key
+ * name by N semitones, using tonal's interval-based transpose so the result
+ * gets a conventional spelling (e.g. "Am" up a semitone is "Bbm", not the
+ * "A#m" a fixed sharp/flat table would produce — see the phase 4 handoff).
+ * This is now the only chord transposition in the app; the server just
+ * writes whatever symbols the client sends via POST .../transpose.
+ */
+export function transposeChordSymbol(symbol: string, semitones: number): string {
+  const rootMatch = ROOT_RE.exec(symbol);
+  if (!rootMatch) return symbol;
+  const interval = Interval.fromSemitones(semitones);
+  const root = rootMatch[0];
+  const rest = symbol.slice(root.length);
+  const newRoot = Note.transpose(root, interval);
+  const newRest = rest.replace(BASS_RE, (_match, bass: string) => `/${Note.transpose(bass, interval)}`);
+  return newRoot + newRest;
 }
 
 export interface VoicedTone {

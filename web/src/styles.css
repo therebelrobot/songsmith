@@ -643,6 +643,79 @@ button, input, textarea { font: inherit; color: inherit; }
   padding: 0 20px;
 }
 
+/* ---------- export controls ---------- */
+
+.export-controls { display: flex; align-items: center; gap: 6px; position: relative; }
+
+.export-import-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 10px;
+  width: 320px;
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+}
+
+.export-import-text {
+  width: 100%;
+  background: var(--sheet);
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.export-import-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* ---------- print leadsheet ---------- */
+
+/* Built and populated on every render but invisible on screen; only
+   @media print swaps it in for the interactive editor (below). Kept as its
+   own view rather than CSS-hiding pieces of the editor DOM, since a
+   <textarea>-per-line, drag handles, and the per-active-line-only chord
+   segmentation aren't what a printed page wants. */
+.print-sheet { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; }
+  .app { display: none; }
+  .print-sheet {
+    display: block;
+    font-family: var(--mono);
+    color: #000;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .print-head { margin-bottom: 24px; }
+  .print-head h1 { font-size: 22px; margin: 0 0 4px; }
+  .print-meta { font-size: 12px; color: #333; margin: 0; }
+  .print-sec { break-inside: avoid; margin-bottom: 20px; }
+  .print-sec h2 {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 6px;
+    break-after: avoid;
+  }
+  .print-line { margin-bottom: 2px; }
+  .print-chords {
+    font-size: 13px;
+    font-weight: 600;
+    color: #000;
+    white-space: pre;
+  }
+  .print-lyric { font-size: 14px; white-space: pre-wrap; }
+}
+
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 940px) {

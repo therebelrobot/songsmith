@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { db, touchSong } from '../db';
-import { transposeSymbol } from '../timing/transpose';
-import { IdParam, ChordCreate, ChordPatch, TransposeBody, type ChordRow, type SongRow } from '../types';
+import { IdParam, ChordCreate, ChordPatch, TransposeWriteBody, type ChordRow, type SongRow } from '../types';
 
 export default async function chordRoutes(app: FastifyInstance) {
   app.post('/api/songs/:id/chords', async (req, reply) => {
@@ -79,26 +78,33 @@ export default async function chordRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  /** Rewrites every chord symbol and the song's key by N semitones, in one transaction. */
+  /**
+   * Atomic write for a transposition the client already computed (with
+   * tonal — see TransposeWriteBody). Every chord id must belong to this
+   * song; the whole batch commits or none of it does.
+   */
   app.post('/api/songs/:id/transpose', async (req, reply) => {
     const { id } = IdParam.parse(req.params);
-    const b = TransposeBody.parse(req.body ?? {});
-    const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(id) as unknown as SongRow | undefined;
+    const b = TransposeWriteBody.parse(req.body ?? {});
+    const song = db.prepare('SELECT 1 FROM songs WHERE id = ?').get(id);
     if (!song) return reply.code(404).send({ error: 'song not found' });
 
-    const chords = db.prepare('SELECT * FROM chords WHERE song_id = ?').all(id) as unknown as ChordRow[];
+    if (b.chords.length > 0) {
+      const placeholders = b.chords.map(() => '?').join(',');
+      const owned = db
+        .prepare(`SELECT id FROM chords WHERE song_id = ? AND id IN (${placeholders})`)
+        .all(id, ...b.chords.map((c) => c.id)) as { id: number }[];
+      const ownedIds = new Set(owned.map((r) => r.id));
+      const foreign = b.chords.find((c) => !ownedIds.has(c.id));
+      if (foreign) return reply.code(400).send({ error: `chord ${foreign.id} does not belong to this song` });
+    }
 
     db.exec('BEGIN');
     try {
       const update = db.prepare('UPDATE chords SET symbol = ? WHERE id = ?');
-      for (const c of chords) {
-        update.run(transposeSymbol(c.symbol, b.semitones), c.id);
-      }
-      if (song.song_key) {
-        db.prepare(`UPDATE songs SET song_key = ?, updated_at = datetime('now') WHERE id = ?`).run(
-          transposeSymbol(song.song_key, b.semitones),
-          id,
-        );
+      for (const c of b.chords) update.run(c.symbol, c.id);
+      if (b.song_key !== undefined) {
+        db.prepare(`UPDATE songs SET song_key = ?, updated_at = datetime('now') WHERE id = ?`).run(b.song_key, id);
       }
       db.exec('COMMIT');
     } catch (err) {

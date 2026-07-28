@@ -11,12 +11,14 @@ import {
   type SongStub,
   type SyllableAnchor,
 } from './api';
-import { diatonicChordsForKey } from './chords';
+import { diatonicChordsForKey, transposeChordSymbol } from './chords';
 import { Sheet, anchorsOf } from './components/Sheet';
 import { Inspector } from './components/Inspector';
 import { TempoControl } from './components/TempoControl';
 import { Transport } from './components/Transport';
 import { TransposeControl } from './components/TransposeControl';
+import { ExportControls } from './components/ExportControls';
+import { PrintSheet } from './components/PrintSheet';
 
 /** Which of a line's syllables is under the playhead right now, if any. */
 function landingSyllable(gridLine: GridLine | undefined, bar: number, beat: number): number | null {
@@ -187,12 +189,45 @@ export default function App() {
     });
   }
 
+  /** Computes the new symbols here (with tonal) and writes the finished result atomically. */
   function onTranspose(semitones: number) {
     if (!song) return;
+    const chords = (grid?.chords ?? []).map((c) => ({ id: c.id, symbol: transposeChordSymbol(c.symbol, semitones) }));
+    const song_key = song.song_key ? transposeChordSymbol(song.song_key, semitones) : undefined;
     void guard(async () => {
-      await api.transposeSong(song.id, semitones);
+      await api.writeTransposedChords(song.id, { song_key, chords });
       await reload(song.id);
     });
+  }
+
+  function onExportChordPro() {
+    if (!song) return;
+    void guard(() => api.exportChordPro(song.id));
+  }
+
+  function onExportMidi() {
+    if (!song) return;
+    void guard(() => api.exportMidi(song.id));
+  }
+
+  /** Creates a new song and switches to it. Never touches the currently open song. */
+  function onImportChordPro(text: string) {
+    void (async () => {
+      try {
+        const res = await api.importChordPro(text);
+        setSongs(await api.listSongs());
+        setActiveLineId(null);
+        await reload(res.song_id);
+        setError(res.warnings.length > 0 ? `Imported with notes: ${res.warnings.join('; ')}` : null);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setNeedsToken(true);
+          setError('That token was rejected.');
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'import failed');
+      }
+    })();
   }
 
   /** Debounced per line: typing in one line never delays a save in another. */
@@ -228,6 +263,7 @@ export default function App() {
   }
 
   return (
+    <>
     <div className="app">
       <nav className="rail">
         <h1 className="brand">
@@ -315,6 +351,11 @@ export default function App() {
               </span>
               <TempoControl song={song} onChange={patchTempo} />
               <TransposeControl song={song} onTranspose={onTranspose} />
+              <ExportControls
+                onExportChordPro={onExportChordPro}
+                onExportMidi={onExportMidi}
+                onImport={onImportChordPro}
+              />
               <Transport
                 song={song}
                 chords={grid?.chords ?? []}
@@ -432,6 +473,8 @@ export default function App() {
         />
       ) : null}
     </div>
+    {song ? <PrintSheet song={song} grid={grid} /> : null}
+    </>
   );
 }
 

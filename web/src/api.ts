@@ -150,6 +150,35 @@ export class ApiError extends Error {
   }
 }
 
+/** Fetches a file with the auth header a plain `<a href>` can't carry, then triggers a browser download. */
+async function download(path: string, fallbackName: string): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('authorization', `Bearer ${token}`);
+  const res = await fetch(path, { headers });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `request failed with ${res.status}`;
+    try {
+      message = (JSON.parse(text) as { error?: string })?.error ?? message;
+    } catch {
+      // non-JSON error body — keep the generic message
+    }
+    throw new ApiError(res.status, message);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
@@ -234,9 +263,20 @@ export const api = {
   patchChord: (id: number, patch: { symbol?: string; duration_beats?: number }) =>
     request<Chord>(`/api/chords/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteChord: (id: number) => request<void>(`/api/chords/${id}`, { method: 'DELETE' }),
-  transposeSong: (songId: number, semitones: number) =>
+  exportChordPro: (songId: number) => download(`/api/songs/${songId}/export.chordpro`, 'song.chordpro'),
+  exportMidi: (songId: number) => download(`/api/songs/${songId}/export.mid`, 'song.mid'),
+  importChordPro: (text: string) =>
+    request<{ song_id: number; warnings: string[] }>('/api/import/chordpro', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
+  writeTransposedChords: (
+    songId: number,
+    payload: { song_key?: string; chords: { id: number; symbol: string }[] },
+  ) =>
     request<{ song: Song; chords: Chord[] }>(`/api/songs/${songId}/transpose`, {
       method: 'POST',
-      body: JSON.stringify({ semitones }),
+      body: JSON.stringify(payload),
     }),
 };
