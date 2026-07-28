@@ -357,8 +357,8 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .chord-slot {
   background: transparent;
-  border: 1px dashed var(--edge);
-  color: var(--edge);
+  border: 1px dashed var(--dim);
+  color: var(--dim);
   line-height: 1.3;
 }
 .chord-slot:hover { color: var(--chord); border-color: var(--chord); }
