@@ -1,4 +1,5 @@
 import type { Grid, Song, WordProsody } from '../api';
+import { displaySymbol } from '../nashville';
 
 /**
  * Syllable ordinal -> character span within its line's raw text. Same
@@ -47,6 +48,8 @@ function chordRowFor(text: string, words: WordProsody[], chordsByIndex: Map<numb
  * segmentation) isn't what a printed page wants.
  */
 export function PrintSheet({ song, grid }: { song: Song; grid: Grid | null }) {
+  const chordDisplay = song.chord_display;
+  const songKey = song.song_key;
   let barOffset = 0;
   const ranges = song.sections.map((s) => {
     const start = barOffset + 1;
@@ -81,7 +84,7 @@ export function PrintSheet({ song, grid }: { song: Song; grid: Grid | null }) {
               const chordsByIndex = new Map(
                 (grid?.chords ?? [])
                   .filter((c) => c.line_id === line.id && c.syllable_index !== null)
-                  .map((c) => [c.syllable_index as number, c.symbol]),
+                  .map((c) => [c.syllable_index as number, displaySymbol(c.symbol, chordDisplay, songKey)]),
               );
               const chordRow = gridLine ? chordRowFor(line.text, line.syllables, chordsByIndex) : '';
               return (
@@ -93,7 +96,9 @@ export function PrintSheet({ song, grid }: { song: Song; grid: Grid | null }) {
             })}
             {unplaced.length > 0 ? (
               <div className="print-line">
-                <div className="print-chords">{unplaced.map((c) => c.symbol).join('  ')}</div>
+                <div className="print-chords">
+                  {unplaced.map((c) => displaySymbol(c.symbol, chordDisplay, songKey)).join('  ')}
+                </div>
               </div>
             ) : null}
           </section>

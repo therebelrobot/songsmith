@@ -127,6 +127,8 @@ export function Sheet({
                   ) ?? []
                 }
                 diatonicSuggestions={diatonicSuggestions}
+                chordDisplay={song.chord_display}
+                songKey={song.song_key}
                 onAddChord={onAddChord}
                 onRenameChord={onRenameChord}
                 onDeleteChord={onDeleteChord}
@@ -164,6 +166,8 @@ export function Sheet({
                       gridLine={gridLine}
                       liveIndex={liveIndex}
                       chords={lineChords}
+                      chordDisplay={song.chord_display}
+                      songKey={song.song_key}
                       onFocus={() => onSelectLine(line.id)}
                       onChange={(text) => onEditLine(line.id, text)}
                       onSplitBelow={() => onAddLine(section.id, line.id)}

@@ -41,6 +41,8 @@ export interface Song {
   notes: string;
   /** 0 or 1, straight from the sqlite column — falls back to root-position-only chords when 0. */
   voice_leading: number;
+  /** 'names' or 'numbers' — display only, computed client-side; never changes what's stored. */
+  chord_display: string;
   updated_at: string;
   sections: Section[];
 }

@@ -196,6 +196,8 @@ button, input, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .voice-leading-toggle input { accent-color: var(--pulse); cursor: pointer; }
+.voice-leading-toggle:has(input:disabled) { opacity: 0.4; cursor: default; }
+.voice-leading-toggle input:disabled { cursor: default; }
 
 /* ---------- tempo + transport ---------- */
 

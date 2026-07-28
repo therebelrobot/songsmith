@@ -200,3 +200,14 @@ export function fromNumber(input: string, key: string): string | null {
   if (chord.empty || chord.notes.length === 0) return null;
   return out;
 }
+
+/**
+ * What a chord chip should show, given the song's display setting. Numbers
+ * mode falls back to the letter name with no key to convert against — the
+ * toggle itself is disabled in that case, so this is a defensive fallback,
+ * not a path the UI is expected to exercise.
+ */
+export function displaySymbol(symbol: string, chordDisplay: string, songKey: string | null): string {
+  if (chordDisplay !== 'numbers' || !songKey) return symbol;
+  return toNumber(symbol, songKey);
+}

@@ -98,6 +98,14 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     });
   }
 
+  function patchChordDisplay(chord_display: 'names' | 'numbers') {
+    if (!song) return;
+    setSong({ ...song, chord_display });
+    void guard(async () => {
+      await api.patchSong(song.id, { chord_display });
+    });
+  }
+
   function patchTempo(patch: { tempo_bpm?: number | null; meter_num?: number; meter_den?: number }) {
     if (!song) return;
     setSong({ ...song, ...patch });
@@ -367,6 +375,7 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     patchTitle,
     patchKey,
     patchVoiceLeading,
+    patchChordDisplay,
     patchTempo,
     onSectionBarCount,
     onAssignLineToBar,

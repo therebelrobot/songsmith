@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { PlacedChord } from '../api';
 import { isValidChordSymbol } from '../chords';
+import { displaySymbol } from '../nashville';
 
 interface Props {
   /** absolute bar number of this section's first bar, across the whole song */
@@ -14,6 +15,9 @@ interface Props {
   chords: PlacedChord[];
   /** diatonic suggestion chips shown while adding a chord; [] when the song has no key */
   diatonicSuggestions: readonly string[];
+  /** 'names' or 'numbers' — how chord chips render; entry accepts either format regardless */
+  chordDisplay: string;
+  songKey: string | null;
   onAddChord: (bar: number, beat: number, symbol: string) => void;
   onRenameChord: (id: number, symbol: string) => void;
   onDeleteChord: (id: number) => void;
@@ -34,6 +38,8 @@ export function BarRuler({
   onDropBar,
   chords,
   diatonicSuggestions,
+  chordDisplay,
+  songKey,
   onAddChord,
   onRenameChord,
   onDeleteChord,
@@ -81,7 +87,7 @@ export function BarRuler({
                 return (
                   <ChordSlotEditor
                     key={beat}
-                    initial={chord?.symbol ?? ''}
+                    initial={chord ? displaySymbol(chord.symbol, chordDisplay, songKey) : ''}
                     suggestions={diatonicSuggestions}
                     onCommit={commit}
                     onCancel={() => setEditing(null)}
@@ -90,6 +96,7 @@ export function BarRuler({
               }
 
               if (chord) {
+                const label = displaySymbol(chord.symbol, chordDisplay, songKey);
                 return (
                   <button
                     key={beat}
@@ -103,7 +110,7 @@ export function BarRuler({
                     onClick={() => setEditing({ bar, beat, chordId: chord.id })}
                     title={`${chord.symbol} — click to rename, drag to move`}
                   >
-                    {chord.symbol}
+                    {label}
                     <span
                       className="chord-chip-del"
                       role="button"

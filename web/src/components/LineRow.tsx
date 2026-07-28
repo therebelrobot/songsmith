@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GridLine, Line, PlacedChord } from '../api';
+import { displaySymbol } from '../nashville';
 import { StressLine, Segmentation, scansionLabel } from './Scansion';
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
   gridLine?: GridLine;
   liveIndex?: number | null;
   chords: PlacedChord[];
+  chordDisplay: string;
+  songKey: string | null;
   onFocus: () => void;
   onChange: (text: string) => void;
   onSplitBelow: () => void;
@@ -25,6 +28,8 @@ export function LineRow({
   gridLine,
   liveIndex,
   chords,
+  chordDisplay,
+  songKey,
   onFocus,
   onChange,
   onSplitBelow,
@@ -55,7 +60,9 @@ export function LineRow({
   const estimated = line.syllables.some((w) => !w.known);
   const pinned = gridLine ? new Set(gridLine.syllables.filter((s) => s.pinned).map((s) => s.index)) : undefined;
   const chordsByIndex = new Map(
-    chords.filter((c) => c.syllable_index !== null).map((c) => [c.syllable_index as number, c.symbol]),
+    chords
+      .filter((c) => c.syllable_index !== null)
+      .map((c) => [c.syllable_index as number, displaySymbol(c.symbol, chordDisplay, songKey)]),
   );
 
   return (

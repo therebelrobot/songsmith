@@ -43,6 +43,7 @@ export default function App() {
     patchTitle,
     patchKey,
     patchVoiceLeading,
+    patchChordDisplay,
     patchTempo,
     onSectionBarCount,
     onAssignLineToBar,
@@ -148,6 +149,23 @@ export default function App() {
                   onChange={(e) => patchVoiceLeading(e.target.checked)}
                 />
                 voice leading
+              </label>
+              <label
+                className="voice-leading-toggle"
+                title={
+                  song.song_key
+                    ? 'Show chord numbers (Nashville Number System) instead of letter names'
+                    : 'Set a key to show chord numbers'
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={song.chord_display === 'numbers'}
+                  disabled={!song.song_key}
+                  aria-label="Chord numbers"
+                  onChange={(e) => patchChordDisplay(e.target.checked ? 'numbers' : 'names')}
+                />
+                numbers
               </label>
               <span className={saving ? 'save-state on' : 'save-state'}>
                 {saving ? 'saving' : 'saved'}
