@@ -31,7 +31,7 @@ test('MTrk chunk length matches its actual byte count', () => {
     tempo_bpm: 120,
     meter_num: 4,
     meter_den: 4,
-    chords: [{ bar: 1, beat: 1, symbol: 'C', duration_beats: 4 }],
+    chords: [{ bar: 1, beat: 1, duration_beats: 4, notes: [48, 64, 67] }],
   });
   const trackTag = [...bytes.slice(14, 18)];
   assert.deepEqual(trackTag, [0x4d, 0x54, 0x72, 0x6b]); // "MTrk"
@@ -60,8 +60,8 @@ test('every note-on has a matching note-off, and events end with End of Track', 
     meter_num: 4,
     meter_den: 4,
     chords: [
-      { bar: 1, beat: 1, symbol: 'C', duration_beats: 2 },
-      { bar: 1, beat: 3, symbol: 'Am7', duration_beats: 2 },
+      { bar: 1, beat: 1, duration_beats: 2, notes: [48, 64, 67] }, // C triad
+      { bar: 1, beat: 3, duration_beats: 2, notes: [57, 60, 64, 67] }, // Am7
     ],
   });
   const body = [...bytes.slice(22)];
@@ -95,12 +95,12 @@ test('every note-on has a matching note-off, and events end with End of Track', 
   assert.equal(offCount, onCount);
 });
 
-test('a chord symbol tonal/voicing cannot parse produces no notes but still a valid file', () => {
+test('a chord with no resolved notes (e.g. an unparseable symbol upstream) still produces a valid file', () => {
   const bytes = buildMidi({
     tempo_bpm: 120,
     meter_num: 4,
     meter_den: 4,
-    chords: [{ bar: 1, beat: 1, symbol: 'N.C.', duration_beats: 4 }],
+    chords: [{ bar: 1, beat: 1, duration_beats: 4, notes: [] }],
   });
   const body = [...bytes.slice(22)];
   // Only the two metas + End of Track: tempo(7) + time-sig(8) + EOT(4) = 19 bytes.

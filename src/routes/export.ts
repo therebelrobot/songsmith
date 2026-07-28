@@ -134,7 +134,7 @@ export default async function exportRoutes(app: FastifyInstance) {
       tempo_bpm: song.tempo_bpm ?? 120,
       meter_num: song.meter_num,
       meter_den: song.meter_den,
-      chords: grid.chords.map((c) => ({ bar: c.bar, beat: c.beat, symbol: c.symbol, duration_beats: c.duration_beats })),
+      chords: grid.chords.map((c) => ({ bar: c.bar, beat: c.beat, duration_beats: c.duration_beats, notes: c.voicing })),
     });
 
     reply

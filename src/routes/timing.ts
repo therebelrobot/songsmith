@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { db, touchSong } from '../db';
 import { resolveLineTiming } from '../timing/resolve';
-import { placeChords, type GridSyllableInput } from '../timing/leadsheet';
+import { placeChords, type GridSyllableInput, type PlacedChord } from '../timing/leadsheet';
+import { resolveVoicings } from '../timing/voiceLeading';
 import { songIdOfLine } from './lines';
 import { IdParam, LineTimingBody, type LineTimingRow, type SongRow, type ChordRow } from '../types';
 
@@ -13,17 +14,23 @@ interface GridRow {
   syllable_count: number;
 }
 
+export interface VoicedChord extends PlacedChord {
+  /** MIDI note numbers, per src/timing/voiceLeading.ts — the same array src/export/midi.ts uses for this chord. */
+  voicing: number[];
+}
+
 export interface Grid {
   meter_num: number;
   meter_den: number;
   tempo_bpm: number | null;
+  voice_leading: boolean;
   lines: {
     line_id: number;
     start_bar: number;
     start_beat: number;
     syllables: { index: number; bar: number; beat: number; pinned: boolean }[];
   }[];
-  chords: ReturnType<typeof placeChords>;
+  chords: VoicedChord[];
 }
 
 /**
@@ -68,12 +75,19 @@ export function buildGrid(songId: number): Grid | null {
   const allSyllables: GridSyllableInput[] = lines.flatMap((l) =>
     l.syllables.map((s) => ({ line_id: l.line_id, index: s.index, bar: s.bar, beat: s.beat })),
   );
-  const chords = placeChords(chordRows, allSyllables, beatsPerBar);
+  const placed = placeChords(chordRows, allSyllables, beatsPerBar);
+  const voiceLeading = !!song.voice_leading;
+  // Voicing is a function of the whole chord *sequence* (voice leading looks at
+  // the previous chord), so it's computed once here in bar/beat order, not
+  // per-chord — the same call src/export/midi.ts makes, so the two can't drift.
+  const voicings = resolveVoicings(placed, voiceLeading);
+  const chords: VoicedChord[] = placed.map((c, i) => ({ ...c, voicing: voicings[i] as number[] }));
 
   return {
     meter_num: song.meter_num,
     meter_den: song.meter_den,
     tempo_bpm: song.tempo_bpm,
+    voice_leading: voiceLeading,
     lines,
     chords,
   };

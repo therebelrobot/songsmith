@@ -1,20 +1,16 @@
 /**
  * Hand-rolled Type-0 Standard MIDI File writer — no library, per the phase 4
  * spec: a 14-byte MThd header plus one MTrk chunk of delta-time-prefixed
- * events. Pure function: takes the chord track and returns bytes.
+ * events. Pure function: takes the chord track (each chord already carrying
+ * its resolved MIDI notes) and returns bytes.
  *
- * Voicing matches playback (web/src/chords.ts's voiceChord): root, or the
- * bass note for a slash chord, in octave 3; every other chord tone in octave
- * 4; no inversions. src/timing/voicing.ts is the server-side equivalent of
- * that function, verified against tonal so the exported file sounds like
- * what the app plays.
+ * Notes come from src/timing/voiceLeading.ts, the same call
+ * GET /api/songs/:id/grid makes, so the exported file always sounds like
+ * what the app plays — there is exactly one voicing implementation, not two
+ * to keep in sync (see the phase 5 handoff).
  */
 
-import { chordSemitones } from '../timing/voicing';
-
 const TICKS_PER_QUARTER = 480;
-const ROOT_OCTAVE = 3;
-const OTHER_OCTAVE = 4;
 const NOTE_ON_VELOCITY = 96;
 const NOTE_OFF_VELOCITY = 64;
 const CHANNEL = 0;
@@ -22,8 +18,9 @@ const CHANNEL = 0;
 export interface MidiChordInput {
   bar: number;
   beat: number;
-  symbol: string;
   duration_beats: number;
+  /** Resolved MIDI note numbers for this chord — see src/timing/voiceLeading.ts. */
+  notes: number[];
 }
 
 export interface MidiSongInput {
@@ -32,11 +29,6 @@ export interface MidiSongInput {
   meter_num: number;
   meter_den: number;
   chords: MidiChordInput[];
-}
-
-/** MIDI note number for a pitch class (0-11) in a given octave, C4 = 60. */
-function midiNote(pitchClass: number, octave: number): number {
-  return (octave + 1) * 12 + pitchClass;
 }
 
 /** Variable-length quantity encoding (MIDI delta-time / meta-length format). */
@@ -83,12 +75,10 @@ export function buildMidi(input: MidiSongInput): Uint8Array {
   for (const c of input.chords) {
     const startTick = Math.round((c.bar - 1) * ticksPerBar + (c.beat - 1) * ticksPerBeat);
     const durationTicks = Math.max(1, Math.round(c.duration_beats * ticksPerBeat));
-    const tones = chordSemitones(c.symbol);
-    tones.forEach((pitchClass, i) => {
-      const note = midiNote(pitchClass, i === 0 ? ROOT_OCTAVE : OTHER_OCTAVE);
+    for (const note of c.notes) {
       events.push({ tick: startTick, kind: 'on', note });
       events.push({ tick: startTick + durationTicks, kind: 'off', note });
-    });
+    }
   }
   events.sort((a, b) => a.tick - b.tick || (a.kind === b.kind ? a.note - b.note : a.kind === 'off' ? -1 : 1));
 
