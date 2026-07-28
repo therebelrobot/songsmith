@@ -1,0 +1,10 @@
+node_modules
+dist
+data/songsmith.db
+data/songsmith.db-wal
+data/songsmith.db-shm
+.git
+.env
+*.log
+web/node_modules
+public

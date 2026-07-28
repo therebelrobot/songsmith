@@ -1,0 +1,38 @@
+{
+  "name": "songsmith",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Unlicense",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "tsx --experimental-sqlite --watch src/index.ts",
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external",
+    "start": "node --experimental-sqlite dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
+    "build:web": "npm --prefix web ci && npm --prefix web run build",
+    "build:all": "npm run build:web && npm run build",
+    "docker:build": "docker build -t ghcr.io/therebelrobot/songsmith:local .",
+    "docker:run": "docker run --rm -p 5180:5180 -v $(pwd)/data:/app/data ghcr.io/therebelrobot/songsmith:local",
+    "docker:push": "docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/therebelrobot/songsmith:latest --push .",
+    "release:patch": "npm version patch -m \"chore: release v%s\" && git push && git push --tags",
+    "release:minor": "npm version minor -m \"chore: release v%s\" && git push && git push --tags",
+    "release:major": "npm version major -m \"chore: release v%s\" && git push && git push --tags",
+    "release:tags": "git tag --sort=-v:refname | grep '^v'"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.2",
+    "fastify": "5.10.0",
+    "tonal": "6.4.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.23.1",
+    "typescript": "5.8.3"
+  }
+}

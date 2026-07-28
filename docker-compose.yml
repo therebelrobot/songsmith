@@ -1,0 +1,24 @@
+services:
+  songsmith:
+    container_name: songsmith
+    build: .
+    restart: unless-stopped
+    # Bound to the Pi's LAN interface only. Nginx Proxy Manager terminates TLS
+    # and forwards to 127.0.0.1:5180, so the port is not published to the world.
+    ports:
+      - "127.0.0.1:5180:5180"
+    environment:
+      PORT: "5180"
+      SONGSMITH_DB: /app/data/songsmith.db
+      SONGSMITH_TOKEN: "${SONGSMITH_TOKEN:?set SONGSMITH_TOKEN in .env}"
+      SONGSMITH_CMUDICT: /app/data/cmudict-0.7b.txt
+      LOG_LEVEL: info
+    volumes:
+      # The database lives on the host so rebuilding the image never touches it.
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5180/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

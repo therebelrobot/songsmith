@@ -1,0 +1,7 @@
+node_modules
+dist
+public
+.env
+data/songsmith.db*
+.DS_Store
+*.tsbuildinfo
