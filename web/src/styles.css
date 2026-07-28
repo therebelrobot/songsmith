@@ -159,7 +159,8 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 .song-title-input {
-  flex: 1;
+  flex: 0 1 320px;
+  min-width: 120px;
   background: transparent;
   border: 0;
   border-bottom: 1px solid transparent;
