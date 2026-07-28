@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS songs (
   meter_den    INTEGER NOT NULL DEFAULT 4,
   notes        TEXT    NOT NULL DEFAULT '',
   voice_leading INTEGER NOT NULL DEFAULT 1,  -- phase 5: blocked root-position chords when 0
+  chord_display TEXT   NOT NULL DEFAULT 'names',  -- 'names' or 'numbers' — display only, never affects storage
   created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );

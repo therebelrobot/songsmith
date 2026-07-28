@@ -7,6 +7,7 @@ import { TempoControl } from './components/TempoControl';
 import { Transport } from './components/Transport';
 import { TransposeControl } from './components/TransposeControl';
 import { ExportControls } from './components/ExportControls';
+import { ChordDisplayToggle } from './components/ChordDisplayToggle';
 import { PrintSheet } from './components/PrintSheet';
 import { useSong } from './hooks/useSong';
 
@@ -43,6 +44,7 @@ export default function App() {
     patchTitle,
     patchKey,
     patchVoiceLeading,
+    patchChordDisplay,
     patchTempo,
     onSectionBarCount,
     onAssignLineToBar,
@@ -149,6 +151,11 @@ export default function App() {
                 />
                 voice leading
               </label>
+              <ChordDisplayToggle
+                chordDisplay={song.chord_display}
+                songKey={song.song_key}
+                onChange={patchChordDisplay}
+              />
               <span className={saving ? 'save-state on' : 'save-state'}>
                 {saving ? 'saving' : 'saved'}
               </span>

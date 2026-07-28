@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Sheet } from './src/components/Sheet';
 import { Inspector } from './src/components/Inspector';
+import { ChordDisplayToggle } from './src/components/ChordDisplayToggle';
 import type { Grid, PlacedChord, Song } from './src/api';
 
 const base = process.env.BASE ?? 'http://localhost:5183';
@@ -226,6 +227,52 @@ const emptyInspector = renderToStaticMarkup(
   <Inspector line={null} songId={song.id} onPromote={noop} onStash={noop} onDiscard={noop} onRestored={noop} onError={noop} />,
 );
 assert('inspector handles no selection', emptyInspector.includes('Select a line'));
+
+// --- Nashville number display ---
+
+const numbersSong: Song = { ...song, song_key: 'C', chord_display: 'numbers' };
+const numbersChordSheet = renderToStaticMarkup(
+  <Sheet
+    song={numbersSong}
+    grid={chordGrid}
+    activeLineId={anchorLine.id}
+    livePosition={null}
+    playheadBar={null}
+    {...sheetHandlers}
+  />,
+);
+assert(
+  'a chord renders as a Nashville number when chord_display is numbers',
+  flatSyllableCount === 0 || (numbersChordSheet.includes('syl-chord') && numbersChordSheet.includes('67') && !numbersChordSheet.includes('Am7')),
+  flatSyllableCount === 0 ? 'skipped: fixture line has no syllables' : '',
+);
+
+const numbersUnplacedSheet = renderToStaticMarkup(
+  <Sheet
+    song={{ ...unplacedSong, song_key: 'C', chord_display: 'numbers' }}
+    grid={emptyGrid(song, [unplacedChord])}
+    activeLineId={null}
+    livePosition={null}
+    playheadBar={null}
+    {...sheetHandlers}
+  />,
+);
+assert(
+  'the bar ruler chip renders as a Nashville number too',
+  // The tooltip intentionally keeps the letter name for disambiguation
+  // (see BarRuler.tsx); only the visible chip label converts.
+  /class="chord-chip"[^>]*>5sus4</.test(numbersUnplacedSheet),
+);
+
+const toggleWithKey = renderToStaticMarkup(
+  <ChordDisplayToggle chordDisplay="names" songKey="C" onChange={noop} />,
+);
+assert('the numbers toggle is enabled when the song has a key', !/<input[^>]*disabled/.test(toggleWithKey));
+
+const toggleNoKey = renderToStaticMarkup(
+  <ChordDisplayToggle chordDisplay="names" songKey={null} onChange={noop} />,
+);
+assert('the numbers toggle is disabled when the song has no key', /<input[^>]*disabled/.test(toggleNoKey));
 
 const emptySong: Song = { ...song, sections: [{ ...song.sections[0]!, lines: [] }] };
 const emptySheet = renderToStaticMarkup(

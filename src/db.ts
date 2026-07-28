@@ -42,6 +42,7 @@ db.exec(readFileSync(join(SCHEMA_DIR, 'schema.sql'), 'utf8'));
 // predates it — schema.sql already has the fresh-database case covered.
 const MIGRATIONS: { version: number; file: string }[] = [
   { version: 2, file: '002-voice-leading.sql' },
+  { version: 3, file: '003-chord-display.sql' },
 ];
 
 if (isFreshDatabase) {

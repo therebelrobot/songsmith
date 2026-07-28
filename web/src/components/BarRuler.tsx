@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { PlacedChord } from '../api';
 import { isValidChordSymbol } from '../chords';
+import { displaySymbol, fromNumber } from '../nashville';
 
 interface Props {
   /** absolute bar number of this section's first bar, across the whole song */
@@ -14,6 +15,9 @@ interface Props {
   chords: PlacedChord[];
   /** diatonic suggestion chips shown while adding a chord; [] when the song has no key */
   diatonicSuggestions: readonly string[];
+  /** 'names' or 'numbers' — how chord chips render; entry accepts either format regardless */
+  chordDisplay: string;
+  songKey: string | null;
   onAddChord: (bar: number, beat: number, symbol: string) => void;
   onRenameChord: (id: number, symbol: string) => void;
   onDeleteChord: (id: number) => void;
@@ -34,6 +38,8 @@ export function BarRuler({
   onDropBar,
   chords,
   diatonicSuggestions,
+  chordDisplay,
+  songKey,
   onAddChord,
   onRenameChord,
   onDeleteChord,
@@ -47,12 +53,23 @@ export function BarRuler({
     return chords.find((c) => c.bar === bar && Math.round(c.beat) === beat);
   }
 
+  /** A letter name always works; a number chart symbol works too, whichever mode is showing. */
+  function resolveEntry(draft: string): string | null {
+    const trimmed = draft.trim();
+    if (isValidChordSymbol(trimmed)) return trimmed;
+    if (songKey) {
+      const fromChart = fromNumber(trimmed, songKey);
+      if (fromChart) return fromChart;
+    }
+    return null;
+  }
+
   function commit(symbol: string) {
     if (!editing) return;
-    const trimmed = symbol.trim();
-    if (!isValidChordSymbol(trimmed)) return;
-    if (editing.chordId !== null) onRenameChord(editing.chordId, trimmed);
-    else onAddChord(editing.bar, editing.beat, trimmed);
+    const resolved = resolveEntry(symbol);
+    if (!resolved) return;
+    if (editing.chordId !== null) onRenameChord(editing.chordId, resolved);
+    else onAddChord(editing.bar, editing.beat, resolved);
     setEditing(null);
   }
 
@@ -81,8 +98,9 @@ export function BarRuler({
                 return (
                   <ChordSlotEditor
                     key={beat}
-                    initial={chord?.symbol ?? ''}
+                    initial={chord ? displaySymbol(chord.symbol, chordDisplay, songKey) : ''}
                     suggestions={diatonicSuggestions}
+                    songKey={songKey}
                     onCommit={commit}
                     onCancel={() => setEditing(null)}
                   />
@@ -90,6 +108,7 @@ export function BarRuler({
               }
 
               if (chord) {
+                const label = displaySymbol(chord.symbol, chordDisplay, songKey);
                 return (
                   <button
                     key={beat}
@@ -103,7 +122,7 @@ export function BarRuler({
                     onClick={() => setEditing({ bar, beat, chordId: chord.id })}
                     title={`${chord.symbol} — click to rename, drag to move`}
                   >
-                    {chord.symbol}
+                    {label}
                     <span
                       className="chord-chip-del"
                       role="button"
@@ -154,16 +173,21 @@ export function BarRuler({
 function ChordSlotEditor({
   initial,
   suggestions,
+  songKey,
   onCommit,
   onCancel,
 }: {
   initial: string;
   suggestions: readonly string[];
+  songKey: string | null;
   onCommit: (symbol: string) => void;
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
-  const invalid = draft.trim().length > 0 && !isValidChordSymbol(draft);
+  const trimmed = draft.trim();
+  // A letter name always works; a number chart symbol works too, whichever
+  // display mode is active — entry format is never gated on it.
+  const invalid = trimmed.length > 0 && !isValidChordSymbol(trimmed) && !(songKey && fromNumber(trimmed, songKey));
 
   return (
     <div className="chord-editor">

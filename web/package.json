@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --force",
+    "test": "tsx --test src/*.test.ts",
+    "test:integration": "tsx --test integration.test.ts",
     "smoke": "esbuild smoke.tsx --bundle --platform=node --format=cjs --outfile=node_modules/.smoke.cjs --jsx=automatic --log-level=error && node node_modules/.smoke.cjs"
   },
   "dependencies": {
@@ -16,9 +18,11 @@
     "tonal": "6.4.3"
   },
   "devDependencies": {
+    "@types/node": "22.15.3",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.1",
     "@vitejs/plugin-react": "5.0.4",
+    "tsx": "^4.23.1",
     "typescript": "5.8.3",
     "vite": "7.1.9"
   }

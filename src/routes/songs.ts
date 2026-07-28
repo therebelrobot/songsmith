@@ -52,10 +52,19 @@ export default async function songRoutes(app: FastifyInstance) {
     const b = SongCreate.parse(req.body ?? {});
     const r = db
       .prepare(
-        `INSERT INTO songs (title, song_key, tempo_bpm, meter_num, meter_den, notes, voice_leading)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO songs (title, song_key, tempo_bpm, meter_num, meter_den, notes, voice_leading, chord_display)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(b.title, b.song_key ?? null, b.tempo_bpm ?? null, b.meter_num, b.meter_den, b.notes, b.voice_leading ? 1 : 0);
+      .run(
+        b.title,
+        b.song_key ?? null,
+        b.tempo_bpm ?? null,
+        b.meter_num,
+        b.meter_den,
+        b.notes,
+        b.voice_leading ? 1 : 0,
+        b.chord_display,
+      );
     const id = Number(r.lastInsertRowid);
     // A song with no sections is unusable in the UI, so seed one.
     db.prepare('INSERT INTO sections (song_id, name, position) VALUES (?, ?, ?)').run(
