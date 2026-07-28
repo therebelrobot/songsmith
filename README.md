@@ -12,6 +12,10 @@ Runs with **four runtime dependencies** (`fastify`, `@fastify/static`, `zod`,
 module and no build toolchain, because storage uses Node's built-in
 `node:sqlite` rather than `better-sqlite3`.
 
+This is the user- and operator-facing doc — install, run, the editor, the
+API. If you're changing the code, see [ARCHITECTURE.md](ARCHITECTURE.md) for
+the module layout and how a change should move through the codebase.
+
 ---
 
 ## Run it

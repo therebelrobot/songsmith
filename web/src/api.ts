@@ -102,11 +102,11 @@ export interface Chord {
   duration_beats: number;
 }
 
-/** A chord plus where it lands, if anywhere — computed server-side by src/timing/leadsheet.ts. */
+/** A chord plus where it lands, if anywhere — computed server-side by src/music/leadsheet.ts. */
 export interface PlacedChord extends Chord {
   line_id: number | null;
   syllable_index: number | null;
-  /** MIDI note numbers, resolved server-side by src/timing/voiceLeading.ts — play these, don't recompute a voicing. */
+  /** MIDI note numbers, resolved server-side by src/music/voiceLeading.ts — play these, don't recompute a voicing. */
   voicing: number[];
 }
 

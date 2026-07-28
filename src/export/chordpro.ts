@@ -3,13 +3,13 @@
  * imports — so the round trip (export -> import -> export) can be tested
  * without a server, and the export route can't drift from the import route.
  *
- * Chord placement reuses src/timing/leadsheet.ts's output (the caller passes
- * already-placed chords) and src/timing/resolve.ts's bar/beat math (the
+ * Chord placement reuses src/music/leadsheet.ts's output (the caller passes
+ * already-placed chords) and src/music/resolve.ts's bar/beat math (the
  * importer calls it directly) rather than reimplementing either.
  */
 
 import { analyzeLine, type WordProsody } from '../prosody/syllables';
-import { resolveLineTiming } from '../timing/resolve';
+import { resolveLineTiming } from '../music/resolve';
 
 // ---------- shared: syllable -> character span within a line's raw text ----------
 
@@ -76,7 +76,7 @@ export interface ChordProInputChord {
   bar: number;
   beat: number;
   symbol: string;
-  /** placement from src/timing/leadsheet.ts's placeChords — null means unplaced (instrumental) */
+  /** placement from src/music/leadsheet.ts's placeChords — null means unplaced (instrumental) */
   line_id: number | null;
   syllable_index: number | null;
 }

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { db, touchSong, midpoint } from '../db';
+import { db, touchSong, midpoint, songIdOfSection, songIdOfLine } from '../db';
 import { analyzeLine } from '../prosody/syllables';
 import {
   IdParam,
@@ -10,20 +10,6 @@ import {
   type SectionRow,
   type LineRow,
 } from '../types';
-
-export function songIdOfSection(sectionId: number): number | null {
-  const r = db.prepare('SELECT song_id FROM sections WHERE id = ?').get(sectionId) as
-    | { song_id: number }
-    | undefined;
-  return r?.song_id ?? null;
-}
-
-export function songIdOfLine(lineId: number): number | null {
-  const r = db
-    .prepare('SELECT s.song_id AS song_id FROM lines l JOIN sections s ON s.id = l.section_id WHERE l.id = ?')
-    .get(lineId) as { song_id: number } | undefined;
-  return r?.song_id ?? null;
-}
 
 /**
  * Resolve a new `position` from after_id/before_id within one sibling set.
