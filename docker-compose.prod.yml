@@ -1,0 +1,33 @@
+# Standalone compose file for running Songsmith from the published image —
+# no clone of this repo required. Drop this file and a .env (copied from
+# .env.example) in their own directory on your server and run
+# `docker compose -f docker-compose.prod.yml up -d`, or rename the file to
+# docker-compose.yml. Compose auto-loads ./.env for the ${...} substitutions
+# below, so it must sit next to this file.
+#
+# ./data is created next to this file on first run and holds the SQLite
+# database. It is mounted at /app/db rather than over /app/data so the CMU
+# dictionary baked into the image isn't shadowed by an empty host directory.
+services:
+  songsmith:
+    container_name: songsmith
+    image: ghcr.io/therebelrobot/songsmith:latest
+    restart: unless-stopped
+    # Bind to localhost and put a reverse proxy (Nginx Proxy Manager, Caddy,
+    # Traefik, ...) in front for TLS. Change to "5180:5180" to expose it
+    # directly instead.
+    ports:
+      - "127.0.0.1:5180:5180"
+    environment:
+      PORT: "5180"
+      SONGSMITH_DB: /app/db/songsmith.db
+      SONGSMITH_TOKEN: "${SONGSMITH_TOKEN:?set SONGSMITH_TOKEN in .env}"
+      LOG_LEVEL: info
+    volumes:
+      - ./data:/app/db
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5180/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

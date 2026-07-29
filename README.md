@@ -59,6 +59,29 @@ The container binds to `127.0.0.1:5180` only. Point Nginx Proxy Manager at that
 address the same way as your other services. The SQLite file lives in `./data`
 on the host, so `docker compose build` never touches your songs.
 
+### Running the published image (no clone required)
+
+To run Songsmith on a server without checking out this repo, grab
+[`docker-compose.prod.yml`](docker-compose.prod.yml) and `.env.example`, put
+them in their own directory, and start it from the published multi-arch
+(amd64/arm64) image:
+
+```bash
+mkdir songsmith && cd songsmith
+curl -O https://raw.githubusercontent.com/therebelrobot/songsmith/main/docker-compose.prod.yml
+curl -O https://raw.githubusercontent.com/therebelrobot/songsmith/main/.env.example
+mv .env.example .env
+openssl rand -hex 32   # paste into SONGSMITH_TOKEN in .env
+
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`./data` (the SQLite database) and `.env` are created next to the compose
+file, so the whole deployment — compose file, env, and data — lives in one
+directory you can back up or move as a unit. Pin a specific release instead
+of `latest` by editing the `image:` tag to e.g.
+`ghcr.io/therebelrobot/songsmith:v0.1.0`.
+
 ## Environment
 
 | Variable | Default | Meaning |
