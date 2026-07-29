@@ -11,6 +11,9 @@ interface Props {
   chords: PlacedChord[];
   chordDisplay: string;
   songKey: string | null;
+  /** True for exactly one render after a mutation targets this line; the line focuses itself, caret at the end, then calls onFocused. */
+  shouldFocus: boolean;
+  onFocused: () => void;
   onFocus: () => void;
   onChange: (text: string) => void;
   onSplitBelow: () => void;
@@ -20,6 +23,11 @@ interface Props {
   onToggleAnchor: (index: number) => void;
   onSetBarBeat: (startBar: number, startBeat: number) => void;
   onClearTiming: () => void;
+  /** Explicit reorder controls — the only way to reorder on touch, since HTML5 drag never fires there; also a better-targeted path than drag on desktop. */
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }
 
 export function LineRow({
@@ -30,6 +38,8 @@ export function LineRow({
   chords,
   chordDisplay,
   songKey,
+  shouldFocus,
+  onFocused,
   onFocus,
   onChange,
   onSplitBelow,
@@ -39,9 +49,14 @@ export function LineRow({
   onToggleAnchor,
   onSetBarBeat,
   onClearTiming,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: Props) {
   const [draft, setDraft] = useState(line.text);
   const [over, setOver] = useState(false);
+  const [scanExpanded, setScanExpanded] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Adopt server text only when this line is not the one being typed in,
@@ -56,6 +71,19 @@ export function LineRow({
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, [draft]);
+
+  // Fires post-render, once the textarea actually exists in the DOM — a
+  // ref.focus() called right after the mutation's await would run before
+  // that, since reload()'s re-render hasn't happened yet.
+  useEffect(() => {
+    if (!shouldFocus) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+    onFocused();
+  }, [shouldFocus, onFocused]);
 
   const estimated = line.syllables.some((w) => !w.known);
   const pinned = gridLine ? new Set(gridLine.syllables.filter((s) => s.pinned).map((s) => s.index)) : undefined;
@@ -84,10 +112,30 @@ export function LineRow({
         onDropOn();
       }}
     >
-      <div className="gutter" title={scansionLabel(line.syllables)}>
+      <div
+        className="gutter"
+        title={scansionLabel(line.syllables)}
+        role="button"
+        tabIndex={0}
+        aria-label={scanExpanded ? 'Hide stress sparkline' : 'Show stress sparkline'}
+        onClick={() => setScanExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setScanExpanded((v) => !v);
+          }
+        }}
+      >
         <span className={estimated ? 'count count-guess' : 'count'}>{line.syllable_count}</span>
-        <StressLine words={line.syllables} />
+        <span className="gutter-scan">
+          <StressLine words={line.syllables} />
+        </span>
       </div>
+      {scanExpanded ? (
+        <div className="gutter-scan-below">
+          <StressLine words={line.syllables} />
+        </div>
+      ) : null}
 
       <div className="line-body">
         <textarea
@@ -178,6 +226,27 @@ export function LineRow({
           {line.alternates.length}
         </span>
       ) : null}
+
+      <div className="reorder">
+        <button
+          type="button"
+          className="reorder-btn"
+          aria-label="Move line up"
+          disabled={!canMoveUp}
+          onClick={onMoveUp}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="reorder-btn"
+          aria-label="Move line down"
+          disabled={!canMoveDown}
+          onClick={onMoveDown}
+        >
+          ▼
+        </button>
+      </div>
     </li>
   );
 }

@@ -29,7 +29,7 @@ export const SongPatch = z
 export const SectionCreate = z.object({
   name: z.string().min(1).max(80).default('Verse'),
   after_id: z.number().int().positive().nullish(),
-  bar_count: z.number().int().min(0).max(2048).nullish(),
+  bar_count: z.number().int().min(0).max(2048).nullish().default(8),
 });
 
 export const SectionPatch = z.object({

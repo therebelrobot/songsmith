@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Grid, SyllableAnchor, Song } from '../api';
 import { offsetOf } from '../api';
+import type { PendingFocus } from '../focus';
 import { LineRow } from './LineRow';
 import { BarRuler } from './BarRuler';
 
@@ -12,11 +13,16 @@ interface Props {
   livePosition: readonly [number, number] | null;
   playheadBar: number | null;
   diatonicSuggestions: readonly string[];
+  /** Set by a useSong mutation to say what should self-focus once it exists in the DOM; cleared once it does. */
+  pendingFocus: PendingFocus;
+  onFocusHandled: () => void;
   onSelectLine: (id: number) => void;
   onEditLine: (id: number, text: string) => void;
   onAddLine: (sectionId: number, afterId?: number) => void;
   onDeleteLine: (id: number) => void;
   onMoveLine: (id: number, beforeId: number) => void;
+  onMoveLineUp: (id: number) => void;
+  onMoveLineDown: (id: number) => void;
   onRenameSection: (id: number, name: string) => void;
   onSectionBarCount: (id: number, barCount: number | null) => void;
   onAddSection: (afterId?: number) => void;
@@ -38,11 +44,15 @@ export function Sheet({
   livePosition,
   playheadBar,
   diatonicSuggestions,
+  pendingFocus,
+  onFocusHandled,
   onSelectLine,
   onEditLine,
   onAddLine,
   onDeleteLine,
   onMoveLine,
+  onMoveLineUp,
+  onMoveLineDown,
   onRenameSection,
   onSectionBarCount,
   onAddSection,
@@ -67,6 +77,11 @@ export function Sheet({
 
   return (
     <div className="sheet">
+      <p className="shortcut-hint">
+        <kbd>Enter</kbd> new line · <kbd>Shift</kbd>+<kbd>Enter</kbd> line break · <kbd>Backspace</kbd> in an empty
+        line deletes it
+      </p>
+
       {song.sections.map((section) => {
         const sectionStartBar = barOffset + 1;
         barOffset += section.bar_count ?? 0;
@@ -74,11 +89,11 @@ export function Sheet({
         return (
           <section key={section.id} className="sec">
             <header className="sec-head">
-              <input
-                className="sec-name"
-                value={section.name}
-                aria-label="Section name"
-                onChange={(e) => onRenameSection(section.id, e.target.value)}
+              <SectionNameInput
+                name={section.name}
+                shouldFocus={pendingFocus?.kind === 'section' && pendingFocus.id === section.id}
+                onFocused={onFocusHandled}
+                onChange={(name) => onRenameSection(section.id, name)}
               />
               <label className="sec-bars">
                 <span>bars</span>
@@ -140,8 +155,17 @@ export function Sheet({
                   draggedChord.current = null;
                   if (id !== null) onMoveChord(id, bar, beat);
                 }}
+                onMoveChord={onMoveChord}
               />
-            ) : null}
+            ) : (
+              <p className="ruler-empty">
+                No bars set, so there's nowhere for chords to go yet.{' '}
+                <button className="link" onClick={() => onSectionBarCount(section.id, 8)}>
+                  Set 8 bars
+                </button>{' '}
+                to enable the chord track.
+              </p>
+            )}
 
             {section.lines.length === 0 ? (
               <p className="empty">
@@ -153,7 +177,7 @@ export function Sheet({
               </p>
             ) : (
               <ol className="lines">
-                {section.lines.map((line) => {
+                {section.lines.map((line, i) => {
                   const gridLine = grid?.lines.find((l) => l.line_id === line.id);
                   const liveIndex =
                     livePosition && livePosition[0] === line.id ? livePosition[1] : null;
@@ -168,6 +192,8 @@ export function Sheet({
                       chords={lineChords}
                       chordDisplay={song.chord_display}
                       songKey={song.song_key}
+                      shouldFocus={pendingFocus?.kind === 'line' && pendingFocus.id === line.id}
+                      onFocused={onFocusHandled}
                       onFocus={() => onSelectLine(line.id)}
                       onChange={(text) => onEditLine(line.id, text)}
                       onSplitBelow={() => onAddLine(section.id, line.id)}
@@ -185,6 +211,10 @@ export function Sheet({
                       }
                       onToggleAnchor={(index) => onToggleAnchor(line.id, index)}
                       onClearTiming={() => onClearTiming(line.id)}
+                      canMoveUp={i > 0}
+                      canMoveDown={i < section.lines.length - 1}
+                      onMoveUp={() => onMoveLineUp(line.id)}
+                      onMoveDown={() => onMoveLineDown(line.id)}
                     />
                   );
                 })}
@@ -202,6 +232,40 @@ export function Sheet({
         Add section
       </button>
     </div>
+  );
+}
+
+/** The section name field, self-focusing (no caret placement needed — it's short and usually replaced wholesale) when `shouldFocus` flips true after "Add section". */
+function SectionNameInput({
+  name,
+  shouldFocus,
+  onFocused,
+  onChange,
+}: {
+  name: string;
+  shouldFocus: boolean;
+  onFocused: () => void;
+  onChange: (name: string) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!shouldFocus) return;
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+    onFocused();
+  }, [shouldFocus, onFocused]);
+
+  return (
+    <input
+      ref={ref}
+      className="sec-name"
+      value={name}
+      aria-label="Section name"
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }
 

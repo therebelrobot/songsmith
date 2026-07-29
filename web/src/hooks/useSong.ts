@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { transposeChordSymbol } from '../chords';
 import { anchorsOf } from '../components/Sheet';
+import { focusTargetAfterDelete, type PendingFocus } from '../focus';
 
 /**
  * Owns the loaded song/grid, the debounced per-line autosave, and every
@@ -26,8 +27,11 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
   const [error, setError] = useState<string | null>(null);
   const [needsToken, setNeedsToken] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingFocus, setPendingFocus] = useState<PendingFocus>(null);
 
   const timers = useRef(new Map<number, number>());
+
+  const clearPendingFocus = useCallback(() => setPendingFocus(null), []);
 
   const guard = useCallback(async (fn: () => Promise<void>) => {
     try {
@@ -61,6 +65,17 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
   useEffect(() => {
     void refreshList();
   }, [refreshList]);
+
+  /** Loads a song and focuses its first line, caret at the end — unlike reload(), which never steals focus. */
+  function openSong(id: number) {
+    void guard(async () => {
+      const [s, g] = await Promise.all([api.getSong(id), api.getGrid(id)]);
+      setSong(s);
+      setGrid(g);
+      const firstLine = s.sections.flatMap((sec) => sec.lines)[0];
+      setPendingFocus(firstLine ? { kind: 'line', id: firstLine.id } : null);
+    });
+  }
 
   function createSong(title: string) {
     void guard(async () => {
@@ -286,15 +301,18 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
       const line = await api.addLine(sectionId, '', afterId);
       await reload(song.id);
       setActiveLineId(line.id);
+      setPendingFocus({ kind: 'line', id: line.id });
     });
   }
 
   function onDeleteLine(id: number) {
     if (!song) return;
+    const target = focusTargetAfterDelete(song.sections, id);
     void guard(async () => {
       await api.deleteLine(id);
-      setActiveLineId(null);
       await reload(song.id);
+      setActiveLineId(target?.id ?? null);
+      setPendingFocus(target);
     });
   }
 
@@ -302,6 +320,35 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     if (!song) return;
     void guard(async () => {
       await api.patchLine(id, { before_id: beforeId });
+      await reload(song.id);
+    });
+  }
+
+  /** Explicit reorder controls: the touch path, since HTML5 drag never fires on mobile — also better for keyboard/screen-reader access on desktop. Intra-section only, same as drag. */
+  function onMoveLineUp(id: number) {
+    if (!song) return;
+    const section = song.sections.find((s) => s.lines.some((l) => l.id === id));
+    if (!section) return;
+    const idx = section.lines.findIndex((l) => l.id === id);
+    if (idx <= 0) return;
+    const beforeId = section.lines[idx - 1]?.id;
+    if (beforeId === undefined) return;
+    void guard(async () => {
+      await api.patchLine(id, { before_id: beforeId });
+      await reload(song.id);
+    });
+  }
+
+  function onMoveLineDown(id: number) {
+    if (!song) return;
+    const section = song.sections.find((s) => s.lines.some((l) => l.id === id));
+    if (!section) return;
+    const idx = section.lines.findIndex((l) => l.id === id);
+    if (idx === -1 || idx >= section.lines.length - 1) return;
+    const afterId = section.lines[idx + 1]?.id;
+    if (afterId === undefined) return;
+    void guard(async () => {
+      await api.patchLine(id, { after_id: afterId });
       await reload(song.id);
     });
   }
@@ -320,8 +367,9 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
   function onAddSection(afterId?: number) {
     if (!song) return;
     void guard(async () => {
-      await api.addSection(song.id, 'Verse', afterId);
+      const section = await api.addSection(song.id, 'Verse', afterId);
       await reload(song.id);
+      setPendingFocus({ kind: 'section', id: section.id });
     });
   }
 
@@ -369,8 +417,11 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     needsToken,
     setNeedsToken,
     saving,
+    pendingFocus,
+    clearPendingFocus,
     refreshList,
     reload,
+    openSong,
     createSong,
     patchTitle,
     patchKey,
@@ -394,6 +445,8 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     onAddLine,
     onDeleteLine,
     onMoveLine,
+    onMoveLineUp,
+    onMoveLineDown,
     onRenameSection,
     onAddSection,
     onDeleteSection,

@@ -29,11 +29,15 @@ function emptyGrid(song: Song, chords: PlacedChord[] = []): Grid {
 /** Every prop a bare <Sheet> needs beyond song/grid/activeLineId/livePosition/playheadBar, so each render call below only states what it's testing. */
 const sheetHandlers = {
   diatonicSuggestions: [] as readonly string[],
+  pendingFocus: null,
+  onFocusHandled: noop,
   onSelectLine: noop,
   onEditLine: noop,
   onAddLine: noop,
   onDeleteLine: noop,
   onMoveLine: noop,
+  onMoveLineUp: noop,
+  onMoveLineDown: noop,
   onRenameSection: noop,
   onSectionBarCount: noop,
   onAddSection: noop,
@@ -75,6 +79,11 @@ assert('active line shows segmentation', sheet.includes('segmentation'));
 assert('syllable counts in gutter', /class="count"/.test(sheet));
 assert('timing controls render for the active line', sheet.includes('aria-label="Start bar"') && sheet.includes('aria-label="Start beat"'));
 assert('unplaced line hints at how to place it', sheet.includes('drag onto the bar ruler'));
+assert('shortcut hint is present', sheet.includes('Shift') && sheet.includes('Backspace') && sheet.includes('shortcut-hint'));
+assert(
+  'move-up/move-down controls render as the touch path for reordering',
+  sheet.includes('aria-label="Move line up"') && sheet.includes('aria-label="Move line down"'),
+);
 
 // --- bar ruler ---
 
@@ -98,9 +107,13 @@ assert('bar ruler numbers the bars from 1', barredSheet.includes('>1<') && barre
 assert('bar ruler highlights the live bar', barredSheet.includes('ruler-bar-live'));
 assert('bar ruler renders an empty chord slot per beat', barredSheet.includes('class="chord-slot"'));
 
+// Explicit bar_count: null rather than relying on the fixture song's own
+// section already being unbarred — new sections default to bar_count 8, so
+// nothing fetched from a live server is guaranteed to be null anymore.
+const unbarredSong: Song = { ...song, sections: [{ ...song.sections[0]!, bar_count: null }] };
 const unbarredSheet = renderToStaticMarkup(
   <Sheet
-    song={song}
+    song={unbarredSong}
     grid={emptyGrid(song)}
     activeLineId={null}
     livePosition={null}
@@ -109,6 +122,10 @@ const unbarredSheet = renderToStaticMarkup(
   />,
 );
 assert('no ruler when a section has no bar_count', !unbarredSheet.includes('class="ruler"'));
+assert(
+  'a section with no bar_count shows an affordance instead of nothing',
+  unbarredSheet.includes('ruler-empty') && unbarredSheet.includes('Set 8 bars'),
+);
 
 // --- syllable anchoring ---
 
