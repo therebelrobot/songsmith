@@ -5,13 +5,17 @@
  * src/music/voiceLeading.ts, which resolves them with the same tonal
  * library), so no symbol translation is needed.
  *
- * One Strudel cycle == one bar. A bar holding more than one chord nests them
- * in `[...]`, evenly spaced across the bar — mini-notation has no concept of
- * "beat 2.5", so the exact beat position from the grid isn't preserved. This
- * is a basic, lossy jumping-off point for further editing in Strudel, not a
- * lossless round trip like ChordPro. Each section's lyric lines are dropped
- * in as plain `//` comments above its pattern — reference only, Strudel has
- * no notion of sung lyrics.
+ * One Strudel cycle == one bar. A chord held across several bars (its
+ * duration_beats spanning more than one bar) renders once with the "!n" hold
+ * operator (e.g. "Cm!4") rather than repeating the symbol or, worse, leaving
+ * the held-through bars silent. A genuine gap — bars with no chord placed at
+ * all — compresses the same way with "~!n". A bar holding more than one
+ * chord (distinct onsets, not a hold) nests them in `[...]`, evenly spaced —
+ * mini-notation has no concept of "beat 2.5", so the exact beat position
+ * from the grid isn't preserved there. This is a basic, lossy jumping-off
+ * point for further editing in Strudel, not a lossless round trip like
+ * ChordPro. Each section's lyric lines are dropped in as plain `//` comments
+ * above its pattern — reference only, Strudel has no notion of sung lyrics.
  */
 
 import type { ChordProInput } from './chordpro';
@@ -51,25 +55,73 @@ function mininotationSafe(symbol: string): string {
   return /\/\d/.test(symbol) ? `"${symbol}"` : symbol;
 }
 
-/** One mini-notation token per bar in [start, start + count): a chord symbol, "~" for a bar with no chord, or "[a b ...]" for a bar with several. */
-function barTokens(chordsByBar: Map<number, string[]>, start: number, count: number): string[] {
+/** "Cm", or "Cm!4" when held for more than one bar — the mini-notation replicate operator, valid on any atom. */
+function holdToken(symbol: string, bars: number): string {
+  const safe = mininotationSafe(symbol);
+  return bars > 1 ? `${safe}!${bars}` : safe;
+}
+
+interface ChordOnset {
+  symbol: string;
+  duration_beats: number;
+}
+
+/** Chords grouped by their onset bar, ordered by beat within a bar — bars with simultaneous onsets (a passing chord stack) keep every symbol. */
+function onsetsByBar(chords: { bar: number; beat: number; symbol: string; duration_beats: number }[]): Map<number, ChordOnset[]> {
+  const byBar = new Map<number, ChordOnset[]>();
+  for (const c of [...chords].sort((a, b) => a.bar - b.bar || a.beat - b.beat)) {
+    const list = byBar.get(c.bar) ?? [];
+    list.push({ symbol: c.symbol, duration_beats: c.duration_beats });
+    byBar.set(c.bar, list);
+  }
+  return byBar;
+}
+
+/** duration_beats (meter_den-note beats, same unit the DB stores) converted to whole bars, minimum 1. */
+function barsHeld(duration_beats: number, beatsPerBar: number): number {
+  return Math.max(1, Math.round(duration_beats / beatsPerBar));
+}
+
+/**
+ * One mini-notation token per held span in [start, start + count): a chord
+ * (optionally "!n"-held), a "[a b ...]" bracket for a bar with several
+ * simultaneous onsets, or a "~"/"~!n" rest for bars with no chord at all.
+ * The token count times each token's hold length always sums to exactly
+ * `count`, so this always accounts for precisely the bars it was asked for.
+ */
+function barTokens(byBar: Map<number, ChordOnset[]>, start: number, count: number, beatsPerBar: number): string[] {
+  const end = start + count;
+  const onsetBars = [...byBar.keys()].filter((b) => b >= start && b < end).sort((a, b) => a - b);
+
   const tokens: string[] = [];
-  for (let bar = start; bar < start + count; bar++) {
-    const symbols = chordsByBar.get(bar);
-    if (!symbols || symbols.length === 0) tokens.push('~');
-    else if (symbols.length === 1) tokens.push(mininotationSafe(symbols[0]!));
-    else tokens.push(`[${symbols.map(mininotationSafe).join(' ')}]`);
+  let bar = start;
+  let oi = 0;
+  while (bar < end) {
+    if (onsetBars[oi] === bar) {
+      const onsets = byBar.get(bar)!;
+      const nextOnsetBar = onsetBars[oi + 1] ?? end;
+      if (onsets.length === 1) {
+        const hold = Math.min(barsHeld(onsets[0]!.duration_beats, beatsPerBar), nextOnsetBar - bar, end - bar);
+        tokens.push(holdToken(onsets[0]!.symbol, hold));
+        bar += hold;
+      } else {
+        tokens.push(`[${onsets.map((o) => mininotationSafe(o.symbol)).join(' ')}]`);
+        bar += 1;
+      }
+      oi++;
+    } else {
+      const restEnd = onsetBars[oi] ?? end;
+      const restLen = restEnd - bar;
+      tokens.push(restLen > 1 ? `~!${restLen}` : '~');
+      bar = restEnd;
+    }
   }
   return tokens;
 }
 
 export function serializeStrudel(input: ChordProInput): string {
-  const chordsByBar = new Map<number, string[]>();
-  for (const c of [...input.chords].sort((a, b) => a.bar - b.bar || a.beat - b.beat)) {
-    const list = chordsByBar.get(c.bar) ?? [];
-    list.push(c.symbol);
-    chordsByBar.set(c.bar, list);
-  }
+  const byBar = onsetsByBar(input.chords);
+  const beatsPerBar = input.meter_num;
 
   const usedDefaultTempo = input.tempo_bpm == null;
   const tempo = input.tempo_bpm ?? DEFAULT_TEMPO_BPM;
@@ -84,9 +136,10 @@ export function serializeStrudel(input: ChordProInput): string {
   ].filter((x): x is string => x !== null);
   out.push(`// ${meta.join('   ')}`);
   out.push('//');
-  out.push('// Basic export: one step per bar. A bar holding more than one chord nests');
-  out.push('// them in [...], evenly spaced — their exact beat position is not preserved.');
-  out.push('// Bars with no chord render as "~". Adjust freely from here.');
+  out.push('// Basic export: one step per bar. A chord held across several bars renders');
+  out.push('// once with "!n" (e.g. Cm!4); a gap with no chord placed renders as "~"/"~!n".');
+  out.push('// A bar with more than one chord nests them in [...], evenly spaced — their');
+  out.push('// exact beat position is not preserved. Adjust freely from here.');
   out.push('');
   out.push(`setcpm(${cpm}) // 1 cycle = 1 bar`);
   out.push('');
@@ -97,13 +150,13 @@ export function serializeStrudel(input: ChordProInput): string {
   input.sections.forEach((s) => {
     const count = s.bar_count ?? 0;
     if (count <= 0) return;
-    const tokens = barTokens(chordsByBar, bar, count);
+    const tokens = barTokens(byBar, bar, count, beatsPerBar);
     const varName = uniqueSlug(s.name, seenNames);
     out.push(`// ${s.name} (bar${count > 1 ? 's' : ''} ${bar}${count > 1 ? `-${bar + count - 1}` : ''})`);
     for (const line of s.lines) {
       if (line.text.trim().length > 0) out.push(`// ${line.text}`);
     }
-    out.push(`const ${varName} = n("0").chord("<${tokens.join(' ')}>").voicing()`);
+    out.push(`const ${varName} = chord("<${tokens.join(' ')}>").voicing()`);
     out.push('');
     arrangeArgs.push(`  [${count}, ${varName}]`);
     bar += count;
@@ -112,13 +165,13 @@ export function serializeStrudel(input: ChordProInput): string {
   // bar_count is user-set and can undercount the song's actual length (e.g. a
   // trailing instrumental bar the section length was never updated for) —
   // rather than silently drop those chords, fold them into one extra step.
-  const maxChordBar = chordsByBar.size > 0 ? Math.max(...chordsByBar.keys()) : 0;
+  const maxChordBar = byBar.size > 0 ? Math.max(...byBar.keys()) : 0;
   if (maxChordBar >= bar) {
     const count = maxChordBar - bar + 1;
-    const tokens = barTokens(chordsByBar, bar, count);
+    const tokens = barTokens(byBar, bar, count, beatsPerBar);
     const varName = 'unassigned_trailing_bars';
     out.push(`// unassigned trailing bars ${bar}-${maxChordBar} (past every section's bar_count)`);
-    out.push(`const ${varName} = n("0").chord("<${tokens.join(' ')}>").voicing()`);
+    out.push(`const ${varName} = chord("<${tokens.join(' ')}>").voicing()`);
     out.push('');
     arrangeArgs.push(`  [${count}, ${varName}]`);
   }

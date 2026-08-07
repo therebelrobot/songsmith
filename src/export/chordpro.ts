@@ -76,6 +76,8 @@ export interface ChordProInputChord {
   bar: number;
   beat: number;
   symbol: string;
+  /** beats (meter_den note value) the chord is held for — ChordPro text itself ignores this; carried through for src/export/strudel.ts. */
+  duration_beats: number;
   /** placement from src/music/leadsheet.ts's placeChords — null means unplaced (instrumental) */
   line_id: number | null;
   syllable_index: number | null;

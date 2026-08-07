@@ -48,7 +48,14 @@ function buildChordProInput(songId: number): ChordProInput | null {
         }),
       };
     }),
-    chords: grid.chords.map((c) => ({ bar: c.bar, beat: c.beat, symbol: c.symbol, line_id: c.line_id, syllable_index: c.syllable_index })),
+    chords: grid.chords.map((c) => ({
+      bar: c.bar,
+      beat: c.beat,
+      symbol: c.symbol,
+      duration_beats: c.duration_beats,
+      line_id: c.line_id,
+      syllable_index: c.syllable_index,
+    })),
   };
 }
 

@@ -92,7 +92,14 @@ function buildChordProInput(song: FixtureSong): ChordProInput {
         start_bar: timedByLine.get(l.id)!.start_bar,
       })),
     })),
-    chords: placed.map((p) => ({ bar: p.bar, beat: p.beat, symbol: p.symbol, line_id: p.line_id, syllable_index: p.syllable_index })),
+    chords: placed.map((p) => ({
+      bar: p.bar,
+      beat: p.beat,
+      symbol: p.symbol,
+      duration_beats: p.duration_beats,
+      line_id: p.line_id,
+      syllable_index: p.syllable_index,
+    })),
   };
 }
 
