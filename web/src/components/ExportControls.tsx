@@ -3,11 +3,12 @@ import { useRef, useState } from 'react';
 interface Props {
   onExportChordPro: () => void;
   onExportMidi: () => void;
+  onExportStrudel: () => void;
   onImport: (text: string) => void;
 }
 
 /** Export/import/print, kept small and unobtrusive in the song header. */
-export function ExportControls({ onExportChordPro, onExportMidi, onImport }: Props) {
+export function ExportControls({ onExportChordPro, onExportMidi, onExportStrudel, onImport }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -19,6 +20,13 @@ export function ExportControls({ onExportChordPro, onExportMidi, onImport }: Pro
       </button>
       <button className="ghost" onClick={onExportMidi} title="Download the chord track as a MIDI file">
         .mid
+      </button>
+      <button
+        className="ghost"
+        onClick={onExportStrudel}
+        title="Download the chord progression as a Strudel/Tidal pattern"
+      >
+        .strudel
       </button>
       <button className="ghost" onClick={() => window.print()} title="Print a leadsheet">
         Print

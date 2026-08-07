@@ -437,13 +437,32 @@ export function planChordProImport(parsed: ChordProParseResult): ImportPlan {
   const chords: ImportChord[] = [];
   const warnings = [...parsed.warnings];
   const droppedSymbols = new Set<string>();
+  let nudged = 0;
+
+  // (song_id, bar, beat) is unique in the DB, but the layout below gives
+  // every line exactly one bar regardless of syllable count — a line with
+  // more syllables than fit one bar (at SIXTEENTHS_PER_SYLLABLE spacing)
+  // places its trailing chord(s) in what resolveLineTiming computes as the
+  // *next* bar, which is also the bar this function is about to hand to the
+  // next line. That chord and the next line's own first chord then both
+  // want (nextBar, beat 1). Track occupied slots and nudge on collision —
+  // same epsilon trick already used for chords stacked on one syllable —
+  // instead of losing either chord.
+  const usedSlots = new Set<string>();
+  const slotKey = (bar: number, beat: number) => `${bar}:${beat.toFixed(4)}`;
 
   const pushChord = (c: ImportChord) => {
     if (c.symbol.length > MAX_CHORD_SYMBOL) {
       droppedSymbols.add(c.symbol);
       return;
     }
-    chords.push(c);
+    let beat = c.beat;
+    while (usedSlots.has(slotKey(c.bar, beat))) {
+      beat += 0.001;
+      nudged++;
+    }
+    usedSlots.add(slotKey(c.bar, beat));
+    chords.push({ ...c, beat });
   };
 
   for (const s of parsed.sections) {
@@ -496,6 +515,9 @@ export function planChordProImport(parsed: ChordProParseResult): ImportPlan {
 
   if (droppedSymbols.size > 0) {
     warnings.push(`dropped ${droppedSymbols.size} chord symbol(s) longer than ${MAX_CHORD_SYMBOL} characters`);
+  }
+  if (nudged > 0) {
+    warnings.push(`nudged ${nudged} chord(s) off a beat that was already occupied by another chord`);
   }
 
   return {

@@ -77,6 +77,7 @@ export default function App() {
     onTranspose,
     onExportChordPro,
     onExportMidi,
+    onExportStrudel,
     onImportChordPro,
     editLine,
     onAddLine,
@@ -221,6 +222,7 @@ export default function App() {
               <ExportControls
                 onExportChordPro={onExportChordPro}
                 onExportMidi={onExportMidi}
+                onExportStrudel={onExportStrudel}
                 onImport={onImportChordPro}
               />
               <Transport

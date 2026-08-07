@@ -272,6 +272,7 @@ export const api = {
   deleteChord: (id: number) => request<void>(`/api/chords/${id}`, { method: 'DELETE' }),
   exportChordPro: (songId: number) => download(`/api/songs/${songId}/export.chordpro`, 'song.chordpro'),
   exportMidi: (songId: number) => download(`/api/songs/${songId}/export.mid`, 'song.mid'),
+  exportStrudel: (songId: number) => download(`/api/songs/${songId}/export.strudel.js`, 'song.strudel.js'),
   importChordPro: (text: string) =>
     request<{ song_id: number; warnings: string[] }>('/api/import/chordpro', {
       method: 'POST',

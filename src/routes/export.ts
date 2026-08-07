@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../db';
 import { buildGrid } from '../music/grid';
 import { serializeChordPro, parseChordPro, planChordProImport, type ChordProInput } from '../export/chordpro';
+import { serializeStrudel } from '../export/strudel';
 import { buildMidi } from '../export/midi';
 import { IdParam, ChordProImportBody, type SongRow, type SectionRow } from '../types';
 
@@ -86,7 +87,25 @@ function applyImportPlan(plan: ReturnType<typeof planChordProImport>): number {
         }
       }
     }
-    for (const c of plan.chords) insChord.run(songId, c.bar, c.beat, c.symbol, c.duration_beats);
+    // planChordProImport already de-collides (bar, beat) pairs it can predict,
+    // but it works line-by-line and can't see every cross-line interaction.
+    // A single row that still collides shouldn't cost the whole import — skip
+    // it and warn rather than rolling back sections/lines the user does want.
+    let droppedChords = 0;
+    for (const c of plan.chords) {
+      try {
+        insChord.run(songId, c.bar, c.beat, c.symbol, c.duration_beats);
+      } catch (err) {
+        if (err instanceof Error && /UNIQUE constraint failed/.test(err.message)) {
+          droppedChords++;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (droppedChords > 0) {
+      plan.warnings.push(`dropped ${droppedChords} chord(s) that still collided with an existing beat after import`);
+    }
 
     db.exec('COMMIT');
     return songId;
@@ -111,6 +130,17 @@ export default async function exportRoutes(app: FastifyInstance) {
     reply
       .header('content-type', 'text/plain; charset=utf-8')
       .header('content-disposition', `attachment; filename="${filenameStem(input.title)}.chordpro"`);
+    return text;
+  });
+
+  app.get('/api/songs/:id/export.strudel.js', async (req, reply) => {
+    const { id } = IdParam.parse(req.params);
+    const input = buildChordProInput(id);
+    if (!input) return reply.code(404).send({ error: 'song not found' });
+    const text = serializeStrudel(input);
+    reply
+      .header('content-type', 'text/javascript; charset=utf-8')
+      .header('content-disposition', `attachment; filename="${filenameStem(input.title)}.strudel.js"`);
     return text;
   });
 

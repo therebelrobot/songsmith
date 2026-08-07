@@ -250,6 +250,11 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     void guard(() => api.exportMidi(song.id));
   }
 
+  function onExportStrudel() {
+    if (!song) return;
+    void guard(() => api.exportStrudel(song.id));
+  }
+
   /** Creates a new song and switches to it. Never touches the currently open song. */
   function onImportChordPro(text: string) {
     void (async () => {
@@ -440,6 +445,7 @@ export function useSong(setActiveLineId: (id: number | null) => void) {
     onTranspose,
     onExportChordPro,
     onExportMidi,
+    onExportStrudel,
     onImportChordPro,
     editLine,
     onAddLine,
